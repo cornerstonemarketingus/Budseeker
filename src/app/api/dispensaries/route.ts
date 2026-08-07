@@ -78,6 +78,7 @@ export async function GET(req: NextRequest) {
         tags["addr:city"],
         tags["addr:state"],
       ].filter(Boolean).join(" ");
+      const deliveryTag = (tags.delivery || tags["service:delivery"] || "").toLowerCase();
       return [{
         id: String(element.id),
         name: tags.name || tags.brand || "Cannabis dispensary",
@@ -88,6 +89,8 @@ export async function GET(req: NextRequest) {
         phone: tags.phone || tags["contact:phone"] || null,
         latitude: placeLat,
         longitude: placeLon,
+        delivery: deliveryTag === "yes" || deliveryTag === "only",
+        pickup: deliveryTag !== "only",
       }];
     }).sort((a, b) => a.distanceMiles - b.distanceMiles).slice(0, 20);
     return NextResponse.json({ places, source: "OpenStreetMap contributors" });
