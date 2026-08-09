@@ -2,6 +2,7 @@
 
 :root {
   color-scheme: light dark;
+  --neon: #34ff9c;
 }
 
 body {
@@ -14,7 +15,7 @@ body {
 }
 
 ::selection {
-  background: rgba(16, 185, 129, 0.28);
+  background: rgba(52, 255, 156, 0.28);
 }
 
 ::-webkit-scrollbar {
@@ -31,7 +32,43 @@ body {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #059669;
+  background: var(--neon);
+}
+
+/* Faint grid, visible only against a black surface (dark mode) */
+.grid-glow {
+  background-image:
+    linear-gradient(rgba(52, 255, 156, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(52, 255, 156, 0.06) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black 40%, transparent 100%);
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black 40%, transparent 100%);
+}
+
+.neon-ring {
+  box-shadow: 0 0 0 1px rgba(52, 255, 156, 0.35), 0 0 28px rgba(52, 255, 156, 0.22);
+}
+
+.neon-text {
+  text-shadow: 0 0 22px rgba(52, 255, 156, 0.55);
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(52, 255, 156, 0.55);
+  }
+  100% {
+    box-shadow: 0 0 0 18px rgba(52, 255, 156, 0);
+  }
+}
+
+.animate-pulse-ring::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  animation: pulse-ring 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  pointer-events: none;
 }
 
 @keyframes guide-idle {
@@ -52,6 +89,9 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .animate-guide-idle {
+    animation: none;
+  }
+  .animate-pulse-ring::after {
     animation: none;
   }
 }
