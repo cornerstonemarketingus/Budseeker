@@ -49,11 +49,11 @@ const features = [
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-950">
-      <header className="border-b border-slate-200 bg-white/80 backdrop-blur">
+    <div className="min-h-screen bg-white text-slate-950 dark:bg-black dark:text-white">
+      <header className="border-b border-slate-200 bg-white/80 backdrop-blur dark:border-zinc-800 dark:bg-black/80">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <div className="flex items-center gap-2 font-semibold">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-700 text-white"><Leaf className="h-4 w-4" /></span>
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white dark:bg-emerald-500"><Leaf className="h-4 w-4" /></span>
             Bud Seeker
           </div>
           <BudSeekerTrigger compact />
@@ -62,11 +62,11 @@ export default function Home() {
 
       <main>
         <section className="mx-auto max-w-4xl px-6 py-24 text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-700">Adults 21+ · AI product guide</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-700 dark:text-emerald-400">Adults 21+ · AI product guide</p>
           <h1 className="mt-5 text-5xl font-semibold tracking-tight sm:text-6xl">
-            Find the right product.<br /><span className="text-emerald-700">Find it near you.</span>
+            Find the right product.<br /><span className="text-emerald-700 dark:text-emerald-400">Find it near you.</span>
           </h1>
-          <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-slate-600">
+          <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-slate-600 dark:text-zinc-400">
             Bud Seeker is a private AI guide that matches you to the right cannabis product, then maps
             licensed retailers near you — with delivery and pickup clearly marked.
           </p>
@@ -75,18 +75,18 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="border-y border-slate-200 bg-white py-20">
+        <section className="border-y border-slate-200 bg-white py-20 dark:border-zinc-800 dark:bg-zinc-950/40">
           <div className="mx-auto max-w-6xl px-6">
             <h2 className="text-center text-3xl font-semibold sm:text-4xl">How it works</h2>
             <div className="mt-12 grid gap-8 sm:grid-cols-3">
               {steps.map((step, index) => (
                 <div key={step.title} className="text-center">
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
                     <step.icon className="h-6 w-6" />
                   </div>
-                  <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Step {index + 1}</p>
+                  <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-400">Step {index + 1}</p>
                   <h3 className="mt-2 text-lg font-semibold">{step.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">{step.description}</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-zinc-400">{step.description}</p>
                 </div>
               ))}
             </div>
@@ -96,19 +96,19 @@ export default function Home() {
         <section className="mx-auto max-w-6xl px-6 py-20">
           <div className="grid gap-6 sm:grid-cols-2">
             {features.map((feature) => (
-              <div key={feature.title} className="rounded-2xl border border-slate-200 bg-white p-6">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+              <div key={feature.title} className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
                   <feature.icon className="h-5 w-5" />
                 </div>
                 <h3 className="mt-4 font-semibold">{feature.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{feature.description}</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-zinc-400">{feature.description}</p>
               </div>
             ))}
           </div>
         </section>
 
         <section className="mx-auto max-w-4xl px-6 pb-24">
-          <div className="rounded-[2rem] bg-emerald-700 px-8 py-14 text-center text-white">
+          <div className="rounded-[2rem] bg-emerald-700 px-8 py-14 text-center text-white dark:bg-emerald-600">
             <Store className="mx-auto h-8 w-8" />
             <h2 className="mt-4 text-3xl font-semibold">Ready to find your next pickup — or delivery?</h2>
             <p className="mx-auto mt-3 max-w-md text-emerald-50">
@@ -121,8 +121,8 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="border-t border-slate-200 bg-white py-8">
-        <div className="mx-auto max-w-6xl px-6 text-center text-xs text-slate-500">
+      <footer className="border-t border-slate-200 bg-white py-8 dark:border-zinc-800 dark:bg-black">
+        <div className="mx-auto max-w-6xl px-6 text-center text-xs text-slate-500 dark:text-zinc-500">
           <p>Bud Seeker · Adults 21+ only · Not medical advice</p>
           <p className="mt-1">Retailer listings are informational and sourced from public map data; they are not an endorsement or guarantee of licensure. Confirm details directly with each retailer.</p>
         </div>
