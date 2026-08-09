@@ -4,47 +4,49 @@ import { BudSeekerTrigger } from "@/components/BudSeekerTrigger";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const metadata: Metadata = {
-  title: "Bud Seeker | Cannabis Product & Dispensary Guide",
+  title: "Bud Seeker | Skip the Menu. Get Matched Instantly.",
+  description:
+    "Stop scrolling menus. Tell Bud Seeker what you want and get matched to real, in-stock cannabis products in seconds — then see exactly which nearby stores have it, delivery or pickup. Free, private, 21+.",
 };
 
 const steps = [
   {
     icon: MessageCircle,
-    title: "Tell the guide what you want",
-    description: "Describe the experience, format, and strength you're after in plain language.",
+    title: "Say what you're after",
+    description: "No menus to scroll. Just describe the vibe, strength, or format — like texting a friend who works there.",
   },
   {
     icon: Leaf,
-    title: "Get matched to real products",
-    description: "The guide compares your request against a live, in-stock catalog — no guesswork.",
+    title: "Get matched, not guessed",
+    description: "It checks what's actually in stock right now and hands you real picks, not generic suggestions.",
   },
   {
     icon: Map,
-    title: "Find delivery or pickup nearby",
-    description: "See mapped, licensed retailers near you, sorted by distance and how you want it fulfilled.",
+    title: "Get it however you want",
+    description: "See which nearby stores have it, ranked by distance, with delivery and pickup called out clearly.",
   },
 ] as const;
 
 const features = [
   {
     icon: MessageCircle,
-    title: "AI product guide",
-    description: "A private budtender-style chat that knows the current menu and answers strain, dosing, and format questions.",
+    title: "Never scroll a menu again",
+    description: "Describe what you want in plain English and get matched instantly — like having a budtender in your pocket, on call anytime.",
   },
   {
     icon: Map,
-    title: "Mapped nearby retailers",
-    description: "Search any city or ZIP, or use your current location, to see licensed dispensaries plotted on a live map.",
+    title: "Know exactly where to go",
+    description: "Search any city or ZIP, or use your location, and see every licensed store plotted on a live map — closest first.",
   },
   {
     icon: Bike,
-    title: "Delivery vs. pickup filters",
-    description: "Filter results by what each store actually offers, so you're not calling around to check.",
+    title: "Delivery or pickup, your call",
+    description: "Filter for exactly what you need so you're never stuck calling around to check what a store actually offers.",
   },
   {
     icon: Lock,
-    title: "Private by design",
-    description: "Access is gated behind a simple email signup — no accounts, no tracking beyond what's needed.",
+    title: "No accounts. No spam.",
+    description: "One email gets you in for good. No passwords, no clutter, no tracking beyond what keeps it running.",
   },
 ] as const;
 
@@ -71,18 +73,20 @@ export default function Home() {
             <div className="absolute left-1/2 top-0 h-[36rem] w-[36rem] -translate-x-1/2 -translate-y-1/3 rounded-full bg-emerald-500/20 blur-[160px]" />
           </div>
           <div className="relative mx-auto max-w-4xl px-6 py-28 text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-700 dark:text-emerald-400 dark:neon-text">Adults 21+ · AI product guide</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-700 dark:text-emerald-400 dark:neon-text">Free · Private · 21+</p>
             <h1 className="mt-5 text-5xl font-semibold tracking-tight sm:text-6xl">
-              Find the right product.<br />
-              <span className="text-emerald-700 dark:text-emerald-400 dark:neon-text">Find it near you.</span>
+              Skip the guesswork.<br />
+              <span className="text-emerald-700 dark:text-emerald-400 dark:neon-text">Get matched instantly.</span>
             </h1>
             <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-slate-600 dark:text-zinc-400">
-              Bud Seeker is a private AI guide that matches you to the right cannabis product, then maps
-              licensed retailers near you — with delivery and pickup clearly marked.
+              Tell Bud Seeker what you&apos;re after — the vibe, the strength, the format — and get matched to
+              real, in-stock products in seconds. Then see exactly which nearby stores have it, delivery
+              or pickup, ready to go.
             </p>
             <div className="mt-9 flex justify-center">
               <BudSeekerTrigger />
             </div>
+            <p className="mt-4 text-xs text-slate-500 dark:text-zinc-500">Free to join. Takes 10 seconds.</p>
           </div>
         </section>
 
@@ -121,9 +125,9 @@ export default function Home() {
         <section className="mx-auto max-w-4xl px-6 pb-24">
           <div className="rounded-[2rem] bg-emerald-700 px-8 py-14 text-center text-white dark:bg-black dark:border dark:border-emerald-400/30 dark:shadow-[0_0_0_1px_rgba(52,255,156,.2),0_0_60px_rgba(52,255,156,.15)]">
             <Store className="mx-auto h-8 w-8 dark:text-emerald-400 dark:drop-shadow-[0_0_14px_rgba(52,255,156,.6)]" />
-            <h2 className="mt-4 text-3xl font-semibold dark:text-white">Ready to find your next pickup — or delivery?</h2>
+            <h2 className="mt-4 text-3xl font-semibold dark:text-white">Your next favorite product is one message away.</h2>
             <p className="mx-auto mt-3 max-w-md text-emerald-50 dark:text-zinc-400">
-              Join with your email and start exploring licensed retailers near you today.
+              Join free and start matching with real products at stores near you — no menus, no calling around.
             </p>
             <div className="mt-7 flex justify-center">
               <BudSeekerTrigger />

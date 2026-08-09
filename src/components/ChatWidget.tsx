@@ -45,7 +45,7 @@ export function ChatWidget() {
   const [fulfillment, setFulfillment] = useState<FulfillmentFilter>("any");
   const [messages, setMessages] = useState<Message[]>([{
     role: "assistant",
-    content: "Tell me the experience, format, and strength you prefer. I'll compare your request with today's menu.",
+    content: "What are you in the mood for? Tell me the vibe, strength, or format and I'll match it against what's actually in stock right now.",
   }]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -216,15 +216,15 @@ export function ChatWidget() {
 
           {tab === "nearby" && !memberEmail ? (
             <form onSubmit={joinBudSeeker} className="m-auto w-full max-w-md p-7">
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400">Members only</p>
-              <h3 className="mt-3 text-3xl font-semibold">Unlock Bud Seeker.</h3>
-              <p className="mt-3 leading-7 text-slate-600 dark:text-zinc-400">Join the private list to search nearby dispensaries and use your personal product guide.</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400">Free access</p>
+              <h3 className="mt-3 text-3xl font-semibold">You&apos;re one email away.</h3>
+              <p className="mt-3 leading-7 text-slate-600 dark:text-zinc-400">Get instant access to your AI budtender and a live map of nearby stores. Free, always — no menus, no calling around.</p>
               <label htmlFor="bud-seeker-email" className="mt-6 block text-sm font-medium text-slate-700 dark:text-zinc-300">Email address</label>
               <input id="bud-seeker-email" type="email" required value={gateEmail} onChange={(event) => setGateEmail(event.target.value)}
                 className="mt-2 h-12 w-full rounded-xl border border-slate-300 bg-white px-4 outline-none focus:border-emerald-500 dark:border-white/10 dark:bg-white/[.03] dark:text-white dark:focus:border-emerald-400/60 dark:focus:shadow-[0_0_0_1px_rgba(52,255,156,.4),0_0_18px_rgba(52,255,156,.2)]"
                 placeholder="you@example.com" />
               {gateError && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{gateError}</p>}
-              <button disabled={joining} className="mt-4 h-12 w-full rounded-xl bg-emerald-700 font-semibold text-white transition disabled:opacity-50 dark:bg-emerald-500 dark:text-black dark:shadow-[0_0_24px_rgba(52,255,156,.4)] dark:hover:shadow-[0_0_32px_rgba(52,255,156,.55)]">{joining ? "Joining…" : "Join and continue"}</button>
+              <button disabled={joining} className="mt-4 h-12 w-full rounded-xl bg-emerald-700 font-semibold text-white transition disabled:opacity-50 dark:bg-emerald-500 dark:text-black dark:shadow-[0_0_24px_rgba(52,255,156,.4)] dark:hover:shadow-[0_0_32px_rgba(52,255,156,.55)]">{joining ? "Joining…" : "Get instant access"}</button>
               <p className="mt-3 text-center text-xs text-slate-500 dark:text-zinc-500">Adults 21+ · Unsubscribe anytime</p>
             </form>
           ) : tab === "nearby" ? (
@@ -249,7 +249,7 @@ export function ChatWidget() {
                 </div>
               </div>
 
-              {locationState === "idle" && <div className="m-auto px-6 py-12 text-center"><Map className="mx-auto h-14 w-14 text-emerald-600 dark:text-emerald-400 dark:drop-shadow-[0_0_16px_rgba(52,255,156,.5)]" /><h3 className="mt-4 text-2xl font-semibold">Find your local cannabis scene.</h3><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-600 dark:text-zinc-400">Search a city or ZIP code, or use your current location to discover mapped dispensaries ordered by distance.</p><button onClick={findNearby} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-3 font-semibold text-white dark:bg-emerald-500 dark:text-black dark:shadow-[0_0_20px_rgba(52,255,156,.4)]"><Navigation className="h-4 w-4" />Explore near me</button></div>}
+              {locationState === "idle" && <div className="m-auto px-6 py-12 text-center"><Map className="mx-auto h-14 w-14 text-emerald-600 dark:text-emerald-400 dark:drop-shadow-[0_0_16px_rgba(52,255,156,.5)]" /><h3 className="mt-4 text-2xl font-semibold">See what&apos;s actually near you.</h3><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-600 dark:text-zinc-400">Search a city or ZIP, or use your location — every mapped store nearby, closest first, delivery and pickup called out.</p><button onClick={findNearby} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-3 font-semibold text-white dark:bg-emerald-500 dark:text-black dark:shadow-[0_0_20px_rgba(52,255,156,.4)]"><Navigation className="h-4 w-4" />Explore near me</button></div>}
               {locationState === "loading" && <div className="m-auto flex items-center gap-3 py-16 text-slate-600 dark:text-zinc-400"><Loader2 className="h-5 w-5 animate-spin" />Searching the area…</div>}
               {locationState === "error" && <div className="m-auto py-10 text-center"><p className="text-sm text-red-600 dark:text-red-400">{locationError}</p><button onClick={findNearby} className="mt-4 rounded-lg border border-emerald-200 px-4 py-2 text-sm font-medium text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-400">Try current location</button></div>}
               {locationState === "done" && <div className="grid min-h-0 flex-1 lg:grid-cols-[1.05fr_0.95fr]">
