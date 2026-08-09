@@ -1,8 +1,18 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   color-scheme: light dark;
   --neon: #34ff9c;
+}
+
+:root.dark {
+  color-scheme: dark;
+}
+
+:root:not(.dark) {
+  color-scheme: light;
 }
 
 body {

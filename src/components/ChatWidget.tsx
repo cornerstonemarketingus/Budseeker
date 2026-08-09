@@ -4,6 +4,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bike, ExternalLink, Leaf, ListFilter, Loader2, LocateFixed, Map, MapPin, Navigation, Send, Store, X } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 type Message = { role: "user" | "assistant"; content: string };
 type Place = {
@@ -202,7 +203,10 @@ export function ChatWidget() {
                 </div>
                 <div><h2 className="font-semibold">{tab === "guide" ? "Private Guide" : "Bud Seeker"}</h2><p className="text-xs text-slate-500 dark:text-zinc-500">{tab === "guide" ? "Your private product guide" : "Explore licensed retailers near you"}</p></div>
               </div>
-              <button onClick={() => setOpen(false)} className="rounded-full p-2 text-slate-500 hover:bg-slate-100 sm:hidden dark:text-zinc-400 dark:hover:bg-white/5" aria-label="Close"><X className="h-5 w-5" /></button>
+              <div className="flex items-center gap-1">
+                <ThemeToggle />
+                <button onClick={() => setOpen(false)} className="rounded-full p-2 text-slate-500 hover:bg-slate-100 sm:hidden dark:text-zinc-400 dark:hover:bg-white/5" aria-label="Close"><X className="h-5 w-5" /></button>
+              </div>
             </div>
             <div className="mt-4 grid max-w-sm grid-cols-2 rounded-full bg-slate-100 p-1 dark:bg-white/[.04]">
               <button onClick={() => setTab("guide")} className={`rounded-full px-3 py-2 text-sm font-medium transition ${tab === "guide" ? "bg-white text-emerald-700 shadow-sm dark:bg-emerald-500/15 dark:text-emerald-300 dark:shadow-[0_0_0_1px_rgba(52,255,156,.4),0_0_14px_rgba(52,255,156,.25)]" : "text-slate-600 dark:text-zinc-500"}`}>Private guide</button>

@@ -37,13 +37,26 @@ export const viewport: Viewport = {
   ],
 };
 
+const themeInitScript = `
+(function () {
+  try {
+    var stored = localStorage.getItem("budseeker_theme");
+    var dark = stored ? stored === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.classList.toggle("dark", dark);
+  } catch (e) {}
+})();
+`;
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className="antialiased bg-white text-slate-950 dark:bg-black dark:text-slate-50 font-sans">
         {children}
         <ChatWidget />

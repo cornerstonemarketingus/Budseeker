@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Bike, Leaf, Lock, Map, MessageCircle, Store } from "lucide-react";
 import { BudSeekerTrigger } from "@/components/BudSeekerTrigger";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const metadata: Metadata = {
   title: "Bud Seeker | Cannabis Product & Dispensary Guide",
@@ -56,7 +57,10 @@ export default function Home() {
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white dark:bg-emerald-500 dark:text-black dark:shadow-[0_0_20px_rgba(52,255,156,.5)]"><Leaf className="h-4 w-4" /></span>
             Bud Seeker
           </div>
-          <BudSeekerTrigger compact />
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <BudSeekerTrigger compact />
+          </div>
         </div>
       </header>
 
