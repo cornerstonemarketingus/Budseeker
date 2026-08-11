@@ -1,5 +1,9 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// Budseeker domain model.
+// Money is always Decimal, never Float. Geo search uses a PostGIS `geog`
+// column maintained by a DB trigger (see prisma/migrations/*_geo_search)
+// and queried via raw SQL — Prisma's `Unsupported` type can't be written,
+// so latitude/longitude stay the Prisma-managed source of truth and the
+// trigger keeps `geog` in sync for indexed ST_DWithin radius queries.
 
 generator client {
   provider = "prisma-client-js"
@@ -9,50 +13,1115 @@ datasource db {
   provider = "postgresql"
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// Identity, auth (Auth.js), RBAC
+// ────────────────────────────────────────────────────────────────────────────
+
+enum UserRoleName {
+  CONSUMER
+  MERCHANT_OWNER
+  MERCHANT_MANAGER
+  MERCHANT_EMPLOYEE
+  BRAND_OWNER
+  BRAND_MANAGER
+  SUPPORT_AGENT
+  MODERATOR
+  ANALYST
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum RoleScopeType {
+  PLATFORM
+  MERCHANT
+  BRAND
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  passwordHash  String?
+
+  dateOfBirth   DateTime?
+  ageVerifiedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts                Account[]
+  sessions                Session[]
+  roles                   UserRole[]
+  savedLocations          SavedLocation[]
+  savedProducts           SavedProduct[]
+  savedStores             SavedStore[]
+  savedBrands             SavedBrand[]
+  lists                   List[]
+  reviews                 Review[]
+  reviewVotes             ReviewVote[]
+  reviewReports           ReviewReport[]
+  alerts                  Alert[]
+  notifications           Notification[]
+  notificationPreference  NotificationPreference?
+  searchHistory           SearchHistory[]
+  recentViews             RecentView[]
+  merchantMemberships     MerchantUser[]
+  brandMemberships        BrandUser[]
+  auditLogs               AuditLog[]
+  assignedModerationCases ModerationCase[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+/// Scoped RBAC: a role either applies platform-wide (scopeType=PLATFORM,
+/// scopeId=null) or to a specific Merchant/Brand (scopeId = that entity's id).
+/// This is the single mechanism behind "merchant_manager for Store #4",
+/// "brand_owner for Brand X", and "super_admin" alike.
+model UserRole {
+  id        String        @id @default(cuid())
+  userId    String
+  role      UserRoleName
+  scopeType RoleScopeType @default(PLATFORM)
+  scopeId   String?
+  createdAt DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role, scopeType, scopeId])
+  @@index([scopeType, scopeId])
+  @@map("user_roles")
+}
+
+model SavedLocation {
+  id        String   @id @default(cuid())
+  userId    String
+  label     String
+  latitude  Float
+  longitude Float
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("saved_locations")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Compliance
+// ────────────────────────────────────────────────────────────────────────────
+
+enum LicenseStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  SUSPENDED
+  EXPIRED
+}
+
+/// Minimum age and delivery legality are data, driven per-jurisdiction —
+/// never a hard-coded constant in application code.
+model JurisdictionPolicy {
+  id              String   @id @default(cuid())
+  country         String
+  region          String
+  minAge          Int      @default(21)
+  deliveryAllowed Boolean  @default(true)
+  medicalOnly     Boolean  @default(false)
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([country, region])
+  @@map("jurisdiction_policies")
+}
+
+/// A dispensary is never "Verified" from merchant self-attestation alone —
+/// status only moves to VERIFIED via an admin action, which is audit-logged.
+model MerchantLicense {
+  id               String        @id @default(cuid())
+  dispensaryId     String        @unique
+  licenseNumber    String
+  licenseType      String?
+  issuingAuthority String
+  status           LicenseStatus @default(UNVERIFIED)
+  issuedAt         DateTime?
+  expiresAt        DateTime?
+  verifiedAt       DateTime?
+  verifiedByUserId String?
+  notes            String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  dispensary Dispensary @relation(fields: [dispensaryId], references: [id], onDelete: Cascade)
+
+  @@map("merchant_licenses")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Merchants & dispensaries
+// ────────────────────────────────────────────────────────────────────────────
+
+enum PlanTier {
+  FREE
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+enum MembershipStatus {
+  INVITED
+  ACTIVE
+  REMOVED
+}
+
+model Merchant {
+  id               String   @id @default(cuid())
+  name             String
+  slug             String   @unique
+  legalName        String?
+  supportEmail     String?
+  planTier         PlanTier @default(FREE)
+  stripeCustomerId String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  dispensaries  Dispensary[]
+  users         MerchantUser[]
+  deals         Deal[]
+  integrations  Integration[]
+  subscriptions Subscription[]
+
+  @@map("merchants")
+}
+
+model MerchantUser {
+  id           String           @id @default(cuid())
+  merchantId   String
+  userId       String
+  invitedEmail String?
+  status       MembershipStatus @default(INVITED)
+  createdAt    DateTime         @default(now())
+  joinedAt     DateTime?
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([merchantId, userId])
+  @@map("merchant_users")
+}
+
+enum DispensaryStatus {
+  DRAFT
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+model Dispensary {
+  id             String           @id @default(cuid())
+  merchantId     String
+  name           String
+  slug           String           @unique
+  description    String?
+  address1       String
+  address2       String?
+  city           String
+  state          String
+  postalCode     String
+  country        String           @default("US")
+  latitude       Float
+  longitude      Float
+  /// Maintained by a DB trigger from latitude/longitude (see the
+  /// geo_search_and_trgm migration) — read only via raw SQL ST_DWithin,
+  /// since Prisma's Unsupported type can't be written through the client.
+  geog           Unsupported("geography(Point, 4326)")?
+  phone          String?
+  website        String?
+  timezone       String           @default("America/Chicago")
+  status         DispensaryStatus @default(DRAFT)
+  ratingAverage  Decimal          @default(0) @db.Decimal(3, 2)
+  ratingCount    Int              @default(0)
+  lastMenuSyncAt DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  merchant      Merchant            @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  license       MerchantLicense?
+  hours         DispensaryHours[]
+  photos        DispensaryPhoto[]
+  listings      DispensaryListing[]
+  dealLocations DealLocation[]
+  savedBy       SavedStore[]
+
+  @@index([city, state])
+  @@index([latitude, longitude])
+  @@map("dispensaries")
+}
+
+model DispensaryHours {
+  id           String  @id @default(cuid())
+  dispensaryId String
+  dayOfWeek    Int
+  opensAt      String
+  closesAt     String
+  closed       Boolean @default(false)
+
+  dispensary Dispensary @relation(fields: [dispensaryId], references: [id], onDelete: Cascade)
+
+  @@unique([dispensaryId, dayOfWeek])
+  @@map("dispensary_hours")
+}
+
+model DispensaryPhoto {
+  id           String  @id @default(cuid())
+  dispensaryId String
+  url          String
+  altText      String?
+  sortOrder    Int     @default(0)
+
+  dispensary Dispensary @relation(fields: [dispensaryId], references: [id], onDelete: Cascade)
+
+  @@map("dispensary_photos")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Brands
+// ────────────────────────────────────────────────────────────────────────────
+
+model Brand {
+  id               String   @id @default(cuid())
+  name             String
+  slug             String   @unique
+  description      String?
+  logoUrl          String?
+  website          String?
+  verified         Boolean  @default(false)
+  planTier         PlanTier @default(FREE)
+  stripeCustomerId String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  users         BrandUser[]
+  products      CanonicalProduct[]
+  savedBy       SavedBrand[]
+  dealBrands    DealBrand[]
+  subscriptions Subscription[]
+
+  @@map("brands")
+}
+
+model BrandUser {
+  id           String           @id @default(cuid())
+  brandId      String
+  userId       String
+  invitedEmail String?
+  status       MembershipStatus @default(INVITED)
+  createdAt    DateTime         @default(now())
+  joinedAt     DateTime?
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([brandId, userId])
+  @@map("brand_users")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Catalog: category / strain / canonical product / variant / listing
+// ────────────────────────────────────────────────────────────────────────────
+
 model Category {
-  id          String    @id @default(cuid())
-  name        String    @unique
-  slug        String    @unique
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  parentId    String?
   description String?
   image       String?
-  sortOrder   Int       @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  products Product[]
+  parent   Category?          @relation("CategoryToCategory", fields: [parentId], references: [id])
+  children Category[]         @relation("CategoryToCategory")
+  products CanonicalProduct[]
 
   @@map("categories")
 }
 
-model Product {
+enum StrainType {
+  INDICA
+  SATIVA
+  HYBRID
+  CBD
+}
+
+/// Descriptive lineage only — never framed as a medical claim.
+model Strain {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  type        StrainType
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  products CanonicalProduct[]
+
+  @@map("strains")
+}
+
+enum ProductStatus {
+  PENDING
+  PUBLISHED
+  ARCHIVED
+}
+
+/// The canonical, store-independent product entity — "Brand X Product Y
+/// 3.5g Flower". Individual stores attach a DispensaryListing to a
+/// ProductVariant of this product; this normalization is what makes
+/// cross-store price comparison possible.
+model CanonicalProduct {
+  id          String        @id @default(cuid())
+  brandId     String
+  categoryId  String
+  strainId    String?
+  name        String
+  slug        String
+  description String?       @db.Text
+  images      String[]
+  effects     String[]
+  flavors     String[]
+  status      ProductStatus @default(PUBLISHED)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  brand        Brand            @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  category     Category         @relation(fields: [categoryId], references: [id])
+  strain       Strain?          @relation(fields: [strainId], references: [id])
+  variants     ProductVariant[]
+  savedBy      SavedProduct[]
+  listItems    ListItem[]
+  dealProducts DealProduct[]
+
+  @@unique([brandId, slug])
+  @@index([categoryId])
+  @@index([strainId])
+  @@map("canonical_products")
+}
+
+/// A specific package/potency SKU of a canonical product — this is where
+/// normalized price-per-unit math (price/g, price/mg) draws its inputs from.
+model ProductVariant {
+  id                 String   @id @default(cuid())
+  canonicalProductId String
+  packageSize        Decimal  @db.Decimal(10, 3)
+  unit               String
+  thcPercent         Decimal? @db.Decimal(5, 2)
+  cbdPercent         Decimal? @db.Decimal(5, 2)
+  thcMgPerServing    Decimal? @db.Decimal(8, 2)
+  cbdMgPerServing    Decimal? @db.Decimal(8, 2)
+  servingsPerPackage Int?
+  sku                String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  canonicalProduct CanonicalProduct    @relation(fields: [canonicalProductId], references: [id], onDelete: Cascade)
+  listings         DispensaryListing[]
+
+  @@index([canonicalProductId])
+  @@map("product_variants")
+}
+
+model DispensaryListing {
+  id                  String    @id @default(cuid())
+  dispensaryId        String
+  productVariantId    String
+  externalSku         String?
+  price               Decimal   @db.Decimal(10, 2)
+  salePrice           Decimal?  @db.Decimal(10, 2)
+  currency            String    @default("USD")
+  inStock             Boolean   @default(true)
+  stockQty            Int?
+  lastSyncedAt        DateTime?
+  sourceIntegrationId String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  dispensary         Dispensary          @relation(fields: [dispensaryId], references: [id], onDelete: Cascade)
+  productVariant     ProductVariant      @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+  priceSnapshots     PriceSnapshot[]
+  inventorySnapshots InventorySnapshot[]
+
+  @@unique([dispensaryId, productVariantId])
+  @@index([productVariantId])
+  @@map("dispensary_listings")
+}
+
+model PriceSnapshot {
+  id         String   @id @default(cuid())
+  listingId  String
+  price      Decimal  @db.Decimal(10, 2)
+  salePrice  Decimal? @db.Decimal(10, 2)
+  capturedAt DateTime @default(now())
+
+  listing DispensaryListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, capturedAt])
+  @@map("price_snapshots")
+}
+
+model InventorySnapshot {
+  id         String   @id @default(cuid())
+  listingId  String
+  inStock    Boolean
+  stockQty   Int?
+  capturedAt DateTime @default(now())
+
+  listing DispensaryListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, capturedAt])
+  @@map("inventory_snapshots")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Deals
+// ────────────────────────────────────────────────────────────────────────────
+
+enum DealType {
+  PERCENTAGE_OFF
+  FIXED_PRICE
+  CATEGORY_DISCOUNT
+  BRAND_DISCOUNT
+  PRODUCT_DISCOUNT
+  BOGO
+  DAY_OF_WEEK
+}
+
+enum DealStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  ENDED
+  CANCELLED
+}
+
+/// Every deal carries explicit start/end timestamps and status — a deal is
+/// never assumed to apply; eligibility is always resolved from these joins.
+model Deal {
+  id          String     @id @default(cuid())
+  merchantId  String?
+  title       String
+  description String?
+  dealType    DealType
+  percentOff  Decimal?   @db.Decimal(5, 2)
+  fixedPrice  Decimal?   @db.Decimal(10, 2)
+  startsAt    DateTime
+  endsAt      DateTime
+  status      DealStatus @default(DRAFT)
+  terms       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  merchant  Merchant?      @relation(fields: [merchantId], references: [id])
+  products  DealProduct[]
+  brands    DealBrand[]
+  locations DealLocation[]
+
+  @@index([status, startsAt, endsAt])
+  @@map("deals")
+}
+
+model DealProduct {
+  id                 String @id @default(cuid())
+  dealId             String
+  canonicalProductId String
+
+  deal    Deal             @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  product CanonicalProduct @relation(fields: [canonicalProductId], references: [id], onDelete: Cascade)
+
+  @@unique([dealId, canonicalProductId])
+  @@map("deal_products")
+}
+
+model DealBrand {
+  id      String @id @default(cuid())
+  dealId  String
+  brandId String
+
+  deal  Deal  @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([dealId, brandId])
+  @@map("deal_brands")
+}
+
+model DealLocation {
+  id           String @id @default(cuid())
+  dealId       String
+  dispensaryId String
+
+  deal       Deal       @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  dispensary Dispensary @relation(fields: [dispensaryId], references: [id], onDelete: Cascade)
+
+  @@unique([dealId, dispensaryId])
+  @@map("deal_locations")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Reviews
+// ────────────────────────────────────────────────────────────────────────────
+
+enum ReviewTargetType {
+  PRODUCT
+  DISPENSARY
+}
+
+enum ReviewStatus {
+  PENDING
+  PUBLISHED
+  FLAGGED
+  REMOVED
+}
+
+model Review {
+  id                  String           @id @default(cuid())
+  userId              String
+  targetType          ReviewTargetType
+  targetId            String
+  rating              Int
+  title               String?
+  body                String?          @db.Text
+  photos              String[]
+  verified            Boolean          @default(false)
+  status              ReviewStatus     @default(PENDING)
+  merchantResponse    String?          @db.Text
+  merchantRespondedAt DateTime?
+  helpfulCount        Int              @default(0)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  votes   ReviewVote[]
+  reports ReviewReport[]
+
+  @@index([targetType, targetId, status])
+  @@map("reviews")
+}
+
+model ReviewVote {
+  id       String  @id @default(cuid())
+  reviewId String
+  userId   String
+  helpful  Boolean
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, userId])
+  @@map("review_votes")
+}
+
+enum ModerationStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+model ReviewReport {
+  id               String           @id @default(cuid())
+  reviewId         String
+  reportedByUserId String
+  reason           String
+  status           ModerationStatus @default(OPEN)
+  createdAt        DateTime         @default(now())
+
+  review         Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  reportedByUser User   @relation(fields: [reportedByUserId], references: [id], onDelete: Cascade)
+
+  @@map("review_reports")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Favorites, lists, history
+// ────────────────────────────────────────────────────────────────────────────
+
+model SavedProduct {
+  id                 String   @id @default(cuid())
+  userId             String
+  canonicalProductId String
+  createdAt          DateTime @default(now())
+
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product CanonicalProduct @relation(fields: [canonicalProductId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, canonicalProductId])
+  @@map("saved_products")
+}
+
+model SavedStore {
+  id           String   @id @default(cuid())
+  userId       String
+  dispensaryId String
+  createdAt    DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dispensary Dispensary @relation(fields: [dispensaryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dispensaryId])
+  @@map("saved_stores")
+}
+
+model SavedBrand {
+  id        String   @id @default(cuid())
+  userId    String
+  brandId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, brandId])
+  @@map("saved_brands")
+}
+
+model List {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items ListItem[]
+
+  @@map("lists")
+}
+
+model ListItem {
+  id                 String   @id @default(cuid())
+  listId             String
+  canonicalProductId String
+  note               String?
+  createdAt          DateTime @default(now())
+
+  list    List             @relation(fields: [listId], references: [id], onDelete: Cascade)
+  product CanonicalProduct @relation(fields: [canonicalProductId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, canonicalProductId])
+  @@map("list_items")
+}
+
+model SearchHistory {
+  id        String   @id @default(cuid())
+  userId    String?
+  sessionId String?
+  query     String
+  filters   Json?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("search_history")
+}
+
+model RecentView {
+  id         String   @id @default(cuid())
+  userId     String?
+  sessionId  String?
+  entityType String
+  entityId   String
+  viewedAt   DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, viewedAt])
+  @@map("recent_views")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Alerts & notifications
+// ────────────────────────────────────────────────────────────────────────────
+
+enum AlertEntityType {
+  PRODUCT
+  BRAND
+  DISPENSARY
+  SEARCH
+}
+
+enum AlertConditionType {
+  PRICE_BELOW
+  PRICE_DROP_PERCENT
+  BACK_IN_STOCK
+  NEW_DEAL
+  NEW_PRODUCT
+}
+
+model Alert {
+  id                 String             @id @default(cuid())
+  userId             String
+  entityType         AlertEntityType
+  entityId           String?
+  savedSearchQuery   String?
+  savedSearchFilters Json?
+  conditionType      AlertConditionType
+  thresholdPrice     Decimal?           @db.Decimal(10, 2)
+  thresholdPercent   Decimal?           @db.Decimal(5, 2)
+  radiusMiles        Decimal?           @db.Decimal(6, 2)
+  active             Boolean            @default(true)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events AlertEvent[]
+
+  @@index([userId, active])
+  @@map("alerts")
+}
+
+model AlertEvent {
+  id          String   @id @default(cuid())
+  alertId     String
+  triggeredAt DateTime @default(now())
+  payload     Json
+
+  alert Alert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+
+  @@map("alert_events")
+}
+
+enum NotificationType {
+  PRICE_DROP
+  RESTOCK
+  NEW_DEAL
+  NEW_PRODUCT
+  STORE_UPDATE
+  REVIEW_RESPONSE
+  SYSTEM
+  MARKETING
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  PUSH
+}
+
+model Notification {
+  id         String                @id @default(cuid())
+  userId     String
+  type       NotificationType
+  title      String
+  body       String
+  entityType String?
+  entityId   String?
+  readAt     DateTime?
+  channels   NotificationChannel[]
+  createdAt  DateTime              @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id            String  @id @default(cuid())
+  userId        String  @unique
+  marketing     Boolean @default(true)
+  priceAlerts   Boolean @default(true)
+  restockAlerts Boolean @default(true)
+  dealAlerts    Boolean @default(true)
+  brandAlerts   Boolean @default(true)
+  storeAlerts   Boolean @default(true)
+  emailEnabled  Boolean @default(true)
+  pushEnabled   Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Merchant integrations (POS adapters)
+// ────────────────────────────────────────────────────────────────────────────
+
+enum IntegrationProvider {
+  DUTCHIE
+  JANE
+  TREEZ
+  FLOWHUB
+  CSV
+  CUSTOM_API
+}
+
+enum IntegrationSyncStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+model Integration {
+  id         String              @id @default(cuid())
+  merchantId String
+  provider   IntegrationProvider
+  label      String?
+  active     Boolean             @default(true)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  merchant   Merchant               @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  credential IntegrationCredential?
+  syncs      IntegrationSync[]
+
+  @@map("integrations")
+}
+
+/// Credential payload is encrypted at the application layer before storage —
+/// never stored in plaintext, never exposed to the client.
+model IntegrationCredential {
+  id               String   @id @default(cuid())
+  integrationId    String   @unique
+  encryptedPayload String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  integration Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@map("integration_credentials")
+}
+
+model IntegrationSync {
+  id               String                @id @default(cuid())
+  integrationId    String
+  status           IntegrationSyncStatus @default(PENDING)
+  startedAt        DateTime?
+  finishedAt       DateTime?
+  recordsProcessed Int                   @default(0)
+  recordsFailed    Int                   @default(0)
+  createdAt        DateTime              @default(now())
+
+  integration Integration        @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  errors      IntegrationError[]
+
+  @@map("integration_syncs")
+}
+
+model IntegrationError {
+  id        String   @id @default(cuid())
+  syncId    String
+  message   String
+  context   Json?
+  createdAt DateTime @default(now())
+
+  sync IntegrationSync @relation(fields: [syncId], references: [id], onDelete: Cascade)
+
+  @@map("integration_errors")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Billing (Stripe-shaped; not wired to Stripe yet — see roadmap)
+// ────────────────────────────────────────────────────────────────────────────
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+}
+
+model Plan {
   id            String   @id @default(cuid())
   name          String
-  slug          String   @unique
-  description   String?  @db.Text
-  categoryId    String
-  brand         String?
-  sku           String?  @unique
-  price         Float
-  comparePrice  Float?
-  images        String[]
-  thcContent    Float?
-  cbdContent    Float?
-  weight        Float?
-  strain        String?
-  effects       String[]
-  flavors       String[]
-  terpenes      String[]
-  inStock       Boolean  @default(true)
-  stockQuantity Int      @default(0)
-  featured      Boolean  @default(false)
-  published     Boolean  @default(true)
+  tier          PlanTier
+  planFor       String
+  priceMonthly  Decimal  @db.Decimal(10, 2)
+  stripePriceId String?
+  features      Json
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  category Category @relation(fields: [categoryId], references: [id])
+  subscriptions Subscription[]
 
-  @@map("products")
+  @@map("plans")
 }
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  merchantId           String?
+  brandId              String?
+  planId               String
+  status               SubscriptionStatus @default(TRIALING)
+  stripeSubscriptionId String?
+  currentPeriodEnd     DateTime?
+  trialEndsAt          DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  merchant     Merchant?     @relation(fields: [merchantId], references: [id])
+  brand        Brand?        @relation(fields: [brandId], references: [id])
+  plan         Plan          @relation(fields: [planId], references: [id])
+  entitlements Entitlement[]
+
+  @@map("subscriptions")
+}
+
+/// Server-side feature gating — `hasEntitlement(merchantId, "advanced_analytics")`.
+/// Never checked from the client as the source of truth.
+model Entitlement {
+  id             String   @id @default(cuid())
+  subscriptionId String
+  key            String
+  value          Json
+  createdAt      DateTime @default(now())
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, key])
+  @@map("entitlements")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Platform: audit, moderation, feature flags, analytics
+// ────────────────────────────────────────────────────────────────────────────
+
+enum AuditActionCategory {
+  MERCHANT_VERIFICATION
+  LICENSE
+  ADMIN
+  BILLING
+  MODERATION
+  ACCOUNT
+  COMPLIANCE
+}
+
+model AuditLog {
+  id          String              @id @default(cuid())
+  actorUserId String?
+  action      String
+  category    AuditActionCategory
+  entityType  String
+  entityId    String
+  before      Json?
+  after       Json?
+  ip          String?
+  metadata    Json?
+  createdAt   DateTime            @default(now())
+
+  actor User? @relation(fields: [actorUserId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([category, createdAt])
+  @@map("audit_logs")
+}
+
+model ModerationCase {
+  id               String           @id @default(cuid())
+  entityType       String
+  entityId         String
+  reason           String
+  status           ModerationStatus @default(OPEN)
+  assignedToUserId String?
+  resolution       String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  assignedTo User? @relation(fields: [assignedToUserId], references: [id])
+
+  @@index([status])
+  @@map("moderation_cases")
+}
+
+model FeatureFlag {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  enabled     Boolean  @default(false)
+  description String?
+  rules       Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("feature_flags")
+}
+
+model RecommendationEvent {
+  id         String   @id @default(cuid())
+  userId     String?
+  sessionId  String?
+  eventType  String
+  entityType String
+  entityId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("recommendation_events")
+}
+
+model AnalyticsEvent {
+  id         String   @id @default(cuid())
+  userId     String?
+  sessionId  String?
+  name       String
+  properties Json?
+  createdAt  DateTime @default(now())
+
+  @@index([name, createdAt])
+  @@map("analytics_events")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Legacy: private-guide email gate (kept for the existing chat feature;
+// superseded by real accounts going forward — see NewsletterSubscriber note)
+// ────────────────────────────────────────────────────────────────────────────
 
 model NewsletterSubscriber {
   id        String   @id @default(cuid())

@@ -2,21 +2,65 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/*
+ * Design tokens — "dark luxury tech," not stereotypical cannabis-site
+ * green-leaf-and-gradient. Light mode reads closer to a fintech dashboard;
+ * dark mode keeps Budseeker's neon-on-black identity but every color below
+ * is a named token, not a one-off utility class repeated across components.
+ */
 :root {
   color-scheme: light dark;
-  --neon: #34ff9c;
+
+  --color-bg: #ffffff;
+  --color-surface: #f6f7f6;
+  --color-surface-2: #ffffff;
+  --color-fg: #0a0f0c;
+  --color-fg-muted: #5b655f;
+  --color-border: #e3e6e3;
+  --color-accent: #047857;
+  --color-accent-fg: #ffffff;
+  --color-success: #16a34a;
+  --color-warning: #b45309;
+  --color-danger: #dc2626;
 }
 
 :root.dark {
   color-scheme: dark;
+
+  --color-bg: #000000;
+  --color-surface: #0a0c0b;
+  --color-surface-2: #111411;
+  --color-fg: #f4f6f5;
+  --color-fg-muted: #9aa39e;
+  --color-border: #23261f;
+  --color-accent: #34ff9c;
+  --color-accent-fg: #001b10;
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
 }
 
-:root:not(.dark) {
-  color-scheme: light;
+@theme inline {
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --color-bg: var(--color-bg);
+  --color-surface: var(--color-surface);
+  --color-surface-2: var(--color-surface-2);
+  --color-fg: var(--color-fg);
+  --color-fg-muted: var(--color-fg-muted);
+  --color-border: var(--color-border);
+  --color-accent: var(--color-accent);
+  --color-accent-fg: var(--color-accent-fg);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-danger: var(--color-danger);
 }
 
 body {
-  font-family: system-ui, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -25,7 +69,7 @@ body {
 }
 
 ::selection {
-  background: rgba(52, 255, 156, 0.28);
+  background: color-mix(in srgb, var(--color-accent) 30%, transparent);
 }
 
 ::-webkit-scrollbar {
@@ -37,38 +81,37 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #10b981;
+  background: var(--color-accent);
   border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--neon);
+  opacity: 0.6;
 }
 
 /* Faint grid, visible only against a black surface (dark mode) */
 .grid-glow {
   background-image:
-    linear-gradient(rgba(52, 255, 156, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(52, 255, 156, 0.06) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--color-accent) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-accent) 6%, transparent) 1px, transparent 1px);
   background-size: 44px 44px;
   -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black 40%, transparent 100%);
   mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black 40%, transparent 100%);
 }
 
 .neon-ring {
-  box-shadow: 0 0 0 1px rgba(52, 255, 156, 0.35), 0 0 28px rgba(52, 255, 156, 0.22);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-accent) 35%, transparent),
+    0 0 28px color-mix(in srgb, var(--color-accent) 22%, transparent);
 }
 
 .neon-text {
-  text-shadow: 0 0 22px rgba(52, 255, 156, 0.55);
+  text-shadow: 0 0 22px color-mix(in srgb, var(--color-accent) 55%, transparent);
 }
 
 @keyframes pulse-ring {
   0% {
-    box-shadow: 0 0 0 0 rgba(52, 255, 156, 0.55);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 55%, transparent);
   }
   100% {
-    box-shadow: 0 0 0 18px rgba(52, 255, 156, 0);
+    box-shadow: 0 0 0 18px color-mix(in srgb, var(--color-accent) 0%, transparent);
   }
 }
 
@@ -82,12 +125,11 @@ body {
 }
 
 @keyframes guide-idle {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0) scale(1);
   }
-  45% {
-    transform: translateY(-2px) scale(1.015);
-  }
+  45%,
   55% {
     transform: translateY(-2px) scale(1.015);
   }

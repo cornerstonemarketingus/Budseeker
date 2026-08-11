@@ -1,6 +1,10 @@
 import type { Metadata, Viewport } from "next";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 import { ChatWidget } from "@/components/ChatWidget";
+import { AgeGate } from "@/components/layout/AgeGate";
+import { SessionProvider } from "@/components/layout/SessionProvider";
 
 const favicon =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Crect width='24' height='24' rx='6' fill='%23047857'/%3E%3Cpath d='M7 17c-1.5-4 1-9 9-10 .5 5-2 9-9 10Z' fill='%23ffffff'/%3E%3Cpath d='M7 17c1-2 3-4 6-5' stroke='%23047857' stroke-width='1' stroke-linecap='round'/%3E%3C/svg%3E";
@@ -53,13 +57,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="antialiased bg-white text-slate-950 dark:bg-black dark:text-slate-50 font-sans">
-        {children}
-        <ChatWidget />
+      <body className="antialiased bg-bg text-fg font-sans">
+        <SessionProvider>
+          <AgeGate>{children}</AgeGate>
+          <ChatWidget />
+        </SessionProvider>
       </body>
     </html>
   );
