@@ -1,12 +1,23 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bike, ExternalLink, Leaf, ListFilter, Loader2, LocateFixed, Map, MapPin,
   Navigation, Search, Send, SlidersHorizontal, Sparkles, Store, TrendingDown, X,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+
+// Leaflet touches the DOM at import time, so it can only ever run client-side.
+const DispensaryMap = dynamic(() => import("@/components/DispensaryMap").then((m) => m.DispensaryMap), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full w-full items-center justify-center gap-2 text-sm text-slate-500 dark:text-zinc-500">
+      <Loader2 className="h-4 w-4 animate-spin" />Loading map…
+    </div>
+  ),
+});
 
 type Deal = {
   dealScore: number;
@@ -73,6 +84,7 @@ export function BudSeekerApp() {
   const [maxDistance, setMaxDistance] = useState(25);
   const [websiteOnly, setWebsiteOnly] = useState(false);
   const [fulfillment, setFulfillment] = useState<FulfillmentFilter>("any");
+  const [focusedPlaceId, setFocusedPlaceId] = useState<string | null>(null);
 
   // Ask Bud Seeker (collapsible helper, not a floating bot)
   const [askOpen, setAskOpen] = useState(false);
@@ -116,15 +128,12 @@ export function BudSeekerApp() {
     ),
     [places, maxDistance, websiteOnly, fulfillment],
   );
-  const mapUrl = coordinates
-    ? `https://www.openstreetmap.org/export/embed.html?bbox=${coordinates.longitude - 0.08}%2C${coordinates.latitude - 0.06}%2C${coordinates.longitude + 0.08}%2C${coordinates.latitude + 0.06}&layer=mapnik&marker=${coordinates.latitude}%2C${coordinates.longitude}`
-    : "";
-
   async function loadPlaces(nextCoordinates: Coordinates, label: string) {
     setLocationState("loading");
     setLocationError("");
     setCoordinates(nextCoordinates);
     setLocationLabel(label);
+    setFocusedPlaceId(null);
     try {
       const response = await fetch(`/api/dispensaries?lat=${nextCoordinates.latitude}&lon=${nextCoordinates.longitude}`);
       const data = await response.json();
@@ -339,45 +348,47 @@ export function BudSeekerApp() {
               </div>
             )}
             {locationState === "done" && (
-              <div className="mt-6 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-                <div className="order-2 lg:order-1">
-                  <div className="mb-3 flex items-end justify-between">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">Near {locationLabel}</p>
-                      <p className="mt-1 text-sm text-slate-500 dark:text-zinc-500">{visiblePlaces.length} mapped result{visiblePlaces.length === 1 ? "" : "s"}</p>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    {visiblePlaces.length === 0 && <p className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500 dark:bg-white/[.03] dark:text-zinc-500">No mapped dispensaries match these filters. Try a wider distance.</p>}
-                    {visiblePlaces.map((place, index) => (
-                      <article key={place.id} className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-emerald-300 hover:shadow-sm dark:border-white/10 dark:bg-white/[.02] dark:hover:border-emerald-400/40 dark:hover:shadow-[0_0_24px_rgba(52,255,156,.12)]">
-                        <div className="flex items-start gap-3">
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">{index + 1}</span>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <h3 className="font-semibold">{place.name}</h3>
-                                <p className="mt-1 text-sm text-slate-500 dark:text-zinc-500">{place.address}</p>
-                              </div>
-                              <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">{place.distanceMiles} mi</span>
-                            </div>
-                            {place.openingHours && <p className="mt-2 text-xs text-slate-500 dark:text-zinc-500">{place.openingHours}</p>}
-                            <div className="mt-2 flex flex-wrap gap-1.5">
-                              {place.delivery && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"><Bike className="h-3 w-3" />Delivery</span>}
-                              {place.pickup && <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-white/[.06] dark:text-zinc-300"><Store className="h-3 w-3" />Pickup</span>}
-                            </div>
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              <a target="_blank" rel="noreferrer" href={`https://www.openstreetmap.org/directions?to=${place.latitude},${place.longitude}`} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white dark:bg-emerald-500 dark:text-black">Directions <Navigation className="h-3.5 w-3.5" /></a>
-                              {place.website && <a target="_blank" rel="noreferrer" href={place.website} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold dark:border-white/10 dark:text-zinc-300">Menu / website <ExternalLink className="h-3.5 w-3.5" /></a>}
-                            </div>
-                          </div>
-                        </div>
-                      </article>
-                    ))}
+              <div className="mt-6">
+                <div className="mb-3 flex items-end justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">Near {locationLabel}</p>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-zinc-500">{visiblePlaces.length} mapped result{visiblePlaces.length === 1 ? "" : "s"} — click a pin or a result to match them up</p>
                   </div>
                 </div>
-                <div className="order-1 min-h-56 overflow-hidden rounded-2xl border border-slate-200 bg-emerald-50 lg:order-2 dark:border-white/10 dark:bg-white/[.02]">
-                  {mapUrl && <iframe src={mapUrl} className="h-full min-h-64 w-full" style={{ border: 0 }} loading="lazy" title={`Dispensaries near ${locationLabel}`} />}
+
+                <div className="h-[60vh] min-h-[420px] overflow-hidden rounded-2xl border border-slate-200 bg-emerald-50 dark:border-white/10 dark:bg-white/[.02]">
+                  {coordinates && <DispensaryMap center={coordinates} places={visiblePlaces} focusedId={focusedPlaceId} />}
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {visiblePlaces.length === 0 && <p className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500 dark:bg-white/[.03] dark:text-zinc-500 sm:col-span-2 lg:col-span-3">No mapped dispensaries match these filters. Try a wider distance.</p>}
+                  {visiblePlaces.map((place, index) => (
+                    <button
+                      key={place.id}
+                      onClick={() => setFocusedPlaceId(place.id)}
+                      className={`flex flex-col rounded-2xl border p-4 text-left transition hover:border-emerald-300 hover:shadow-sm dark:hover:border-emerald-400/40 dark:hover:shadow-[0_0_24px_rgba(52,255,156,.12)] ${focusedPlaceId === place.id ? "border-emerald-400 bg-emerald-50 dark:border-emerald-400/50 dark:bg-emerald-500/[.06]" : "border-slate-200 bg-white dark:border-white/10 dark:bg-white/[.02]"}`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-xs font-bold text-white dark:bg-emerald-500 dark:text-black">{index + 1}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-3">
+                            <h3 className="font-semibold">{place.name}</h3>
+                            <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">{place.distanceMiles} mi</span>
+                          </div>
+                          <p className="mt-1 text-sm text-slate-500 dark:text-zinc-500">{place.address}</p>
+                          {place.openingHours && <p className="mt-2 text-xs text-slate-500 dark:text-zinc-500">{place.openingHours}</p>}
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {place.delivery && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"><Bike className="h-3 w-3" />Delivery</span>}
+                            {place.pickup && <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-white/[.06] dark:text-zinc-300"><Store className="h-3 w-3" />Pickup</span>}
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <a onClick={(event) => event.stopPropagation()} target="_blank" rel="noreferrer" href={`https://www.openstreetmap.org/directions?to=${place.latitude},${place.longitude}`} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white dark:bg-emerald-500 dark:text-black">Directions <Navigation className="h-3.5 w-3.5" /></a>
+                            {place.website && <a onClick={(event) => event.stopPropagation()} target="_blank" rel="noreferrer" href={place.website} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold dark:border-white/10 dark:text-zinc-300">Menu / website <ExternalLink className="h-3.5 w-3.5" /></a>}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
