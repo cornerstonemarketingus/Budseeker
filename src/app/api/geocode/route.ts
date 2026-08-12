@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { isMember, MEMBERSHIP_REQUIRED_RESPONSE } from "@/lib/membership";
 
 export const dynamic = "force-dynamic";
 
@@ -7,9 +7,7 @@ export async function GET(req: NextRequest) {
   const query = req.nextUrl.searchParams.get("q")?.trim();
   const email = req.nextUrl.searchParams.get("email")?.trim().toLowerCase();
   if (!query) return NextResponse.json({ error: "Enter a city or ZIP code." }, { status: 400 });
-  if (!email || !await db.newsletterSubscriber.findUnique({ where: { email }, select: { id: true } })) {
-    return NextResponse.json({ error: "Email signup is required to use Bud Seeker." }, { status: 403 });
-  }
+  if (!await isMember(email)) return NextResponse.json(MEMBERSHIP_REQUIRED_RESPONSE, { status: 403 });
 
   try {
     const response = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=us&limit=1&q=${encodeURIComponent(query)}`, {

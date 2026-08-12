@@ -16,24 +16,24 @@ function average(values: number[]) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
-/** Records one price snapshot per product per calendar day so DealScore has a real trend to compare against. */
-export async function recordPriceObservation(productId: string, price: number, comparePrice: number | null) {
+/** Records one price snapshot per listing per calendar day so DealScore has a real trend to compare against. */
+export async function recordPriceObservation(listingId: string, price: number, comparePrice: number | null) {
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
   const alreadyRecordedToday = await db.priceObservation.findFirst({
-    where: { productId, observedAt: { gte: startOfDay } },
+    where: { listingId, observedAt: { gte: startOfDay } },
     select: { id: true },
   });
   if (alreadyRecordedToday) return;
-  await db.priceObservation.create({ data: { productId, price, comparePrice: comparePrice ?? undefined } });
+  await db.priceObservation.create({ data: { listingId, price, comparePrice: comparePrice ?? undefined } });
 }
 
 /**
- * Scores the current price against this product's own trailing history. Returns null until
+ * Scores a listing's current price against its own trailing history. Returns null until
  * there's enough history to say anything meaningful, rather than guessing from a single price.
  */
 export async function assessDeal(
-  productId: string,
+  listingId: string,
   currentPrice: number,
   currentComparePrice: number | null,
 ): Promise<DealAssessment | null> {
@@ -41,7 +41,7 @@ export async function assessDeal(
   windowStart.setDate(windowStart.getDate() - DEAL_SCORE_WINDOW_DAYS);
 
   const history = await db.priceObservation.findMany({
-    where: { productId, observedAt: { gte: windowStart } },
+    where: { listingId, observedAt: { gte: windowStart } },
     orderBy: { observedAt: "asc" },
     select: { price: true, comparePrice: true },
   });

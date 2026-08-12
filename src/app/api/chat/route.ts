@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { assessDeal, recordPriceObservation } from "@/lib/pricing";
+import { isMember, MEMBERSHIP_REQUIRED_RESPONSE } from "@/lib/membership";
 
 export const dynamic = "force-dynamic";
 
@@ -15,28 +16,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "messages required" }, { status: 400 });
     }
     const normalizedEmail = email?.trim().toLowerCase();
-    if (!normalizedEmail || !await db.newsletterSubscriber.findUnique({ where: { email: normalizedEmail }, select: { id: true } })) {
-      return NextResponse.json({ error: "Email signup is required to use Bud Seeker." }, { status: 403 });
-    }
+    if (!await isMember(normalizedEmail)) return NextResponse.json(MEMBERSHIP_REQUIRED_RESPONSE, { status: 403 });
 
-    const products = await db.product.findMany({
+    const listings = await db.retailerListing.findMany({
       where: { published: true, inStock: true },
-      include: { category: true },
+      include: { variant: { include: { canonicalProduct: { include: { category: true } } } } },
       take: 30,
       orderBy: { featured: "desc" },
     });
 
-    const productLines = await Promise.all(products.map(async (p) => {
+    const productLines = await Promise.all(listings.map(async (listing) => {
+      const product = listing.variant.canonicalProduct;
       // Best-effort: today's snapshot and deal score should never block a chat reply.
       const deal = await Promise.all([
-        recordPriceObservation(p.id, p.price, p.comparePrice).catch(() => undefined),
-        assessDeal(p.id, p.price, p.comparePrice).catch(() => null),
+        recordPriceObservation(listing.id, listing.price, listing.comparePrice).catch(() => undefined),
+        assessDeal(listing.id, listing.price, listing.comparePrice).catch(() => null),
       ]).then(([, assessment]) => assessment);
 
       const dealNote = deal
         ? ` | ${deal.label} (${deal.dealScore}/100${deal.savingsVsTypical > 0 ? `, $${deal.savingsVsTypical.toFixed(2)} below typical` : ""})`
         : "";
-      return `• ${p.name} (${p.category.name}) — $${p.price}${p.thcContent ? ` | THC: ${p.thcContent}%` : ""}${p.cbdContent ? ` | CBD: ${p.cbdContent}%` : ""}${p.strain ? ` | ${p.strain}` : ""}${dealNote}`;
+      const sizeNote = listing.variant.label ? ` ${listing.variant.label}` : "";
+      return `• ${product.name}${sizeNote} (${product.category.name}) — $${listing.price}${product.thcContent ? ` | THC: ${product.thcContent}%` : ""}${product.cbdContent ? ` | CBD: ${product.cbdContent}%` : ""}${product.strain ? ` | ${product.strain}` : ""}${dealNote}`;
     }));
     const productSummary = productLines.join("\n");
 

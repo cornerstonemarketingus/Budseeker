@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { isMember, MEMBERSHIP_REQUIRED_RESPONSE } from "@/lib/membership";
 
 export const dynamic = "force-dynamic";
 
@@ -28,9 +28,7 @@ export async function GET(req: NextRequest) {
   if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
     return NextResponse.json({ error: "Valid coordinates are required." }, { status: 400 });
   }
-  if (!email || !await db.newsletterSubscriber.findUnique({ where: { email }, select: { id: true } })) {
-    return NextResponse.json({ error: "Email signup is required to use Bud Seeker." }, { status: 403 });
-  }
+  if (!await isMember(email)) return NextResponse.json(MEMBERSHIP_REQUIRED_RESPONSE, { status: 403 });
 
   const query = `[out:json][timeout:20];
     (
