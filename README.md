@@ -41,6 +41,8 @@ OLLAMA_MODEL="gemma4:31b"
 npm run db:push
 ```
 
+The production `build` script also runs `prisma db push` automatically, so `DATABASE_URL` must be reachable at build time (including on Vercel) — there's no separate migrations step yet. If a future schema change would cause data loss, the push will fail rather than silently drop data; run it manually with `--accept-data-loss` once you've confirmed that's intended.
+
 Bud Seeker reads its catalog from the canonical product graph — seed `Category`, `Brand`, `CanonicalProduct`, `ProductVariant`, `Retailer`, and `RetailerListing` from your own retailer data. Price history builds up automatically as `RetailerListing` rows are read (one snapshot per listing per day); it does not need to be seeded.
 
 ### 4. Run locally
