@@ -72,18 +72,18 @@ export default function Home() {
             <div className="grid-glow absolute inset-0" />
             <div className="absolute left-1/2 top-0 h-[36rem] w-[36rem] -translate-x-1/2 -translate-y-1/3 rounded-full bg-emerald-500/20 blur-[160px]" />
           </div>
-          <div className="relative mx-auto max-w-4xl px-6 py-28 text-center">
+          <div className="relative mx-auto max-w-4xl px-6 py-14 text-center sm:py-20">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-700 dark:text-emerald-400 dark:neon-text">Free · Instant · 21+</p>
-            <h1 className="mt-5 text-5xl font-semibold tracking-tight sm:text-6xl">
+            <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-6xl">
               Skip the guesswork.<br />
               <span className="text-emerald-700 dark:text-emerald-400 dark:neon-text">Get matched instantly.</span>
             </h1>
-            <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-slate-600 dark:text-zinc-400">
+            <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-slate-600 dark:text-zinc-400 sm:text-lg sm:leading-8">
               Search by strain, tell Bud Seeker what you&apos;re after, or share your location — get matched to
               real, in-stock products in seconds and see exactly which nearby stores have it, delivery
               or pickup, ready to go.
             </p>
-            <div className="mt-9 flex justify-center">
+            <div className="mt-7 flex justify-center">
               <BudSeekerTrigger />
             </div>
             <p className="mt-4 text-xs text-slate-500 dark:text-zinc-500">No email. No signup. Just open it and go.</p>
