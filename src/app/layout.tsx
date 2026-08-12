@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { ChatWidget } from "@/components/ChatWidget";
 
 const favicon =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Crect width='24' height='24' rx='6' fill='%23047857'/%3E%3Cpath d='M7 17c-1.5-4 1-9 9-10 .5 5-2 9-9 10Z' fill='%23ffffff'/%3E%3Cpath d='M7 17c1-2 3-4 6-5' stroke='%23047857' stroke-width='1' stroke-linecap='round'/%3E%3C/svg%3E";
@@ -12,7 +11,7 @@ export const metadata: Metadata = {
     template: "%s | Bud Seeker",
   },
   description:
-    "Bud Seeker is a private AI product guide and nearby-dispensary finder for cannabis shoppers — compare delivery and pickup options, map licensed retailers, and get matched to the right product. 21+ only.",
+    "Bud Seeker is a free, instant AI product guide and nearby-dispensary finder for cannabis shoppers — search by strain or location, no signup required, compare delivery and pickup options, and get matched to the right product. 21+ only.",
   keywords: [
     "cannabis dispensary finder",
     "cannabis delivery near me",
@@ -24,7 +23,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Bud Seeker | Cannabis Product & Dispensary Guide",
     description:
-      "A private AI product guide and nearby-dispensary finder — compare delivery and pickup options at licensed retailers near you.",
+      "An instant, no-signup AI product guide and nearby-dispensary finder — compare delivery and pickup options at licensed retailers near you.",
     type: "website",
     locale: "en_US",
   },
@@ -59,7 +58,6 @@ export default function RootLayout({
       </head>
       <body className="antialiased bg-white text-slate-950 dark:bg-black dark:text-slate-50 font-sans">
         {children}
-        <ChatWidget />
       </body>
     </html>
   );

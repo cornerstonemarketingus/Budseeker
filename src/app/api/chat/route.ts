@@ -1,22 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { assessDeal, recordPriceObservation } from "@/lib/pricing";
-import { isMember, MEMBERSHIP_REQUIRED_RESPONSE } from "@/lib/membership";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, email } = await req.json() as {
+    const { messages } = await req.json() as {
       messages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
-      email?: string;
     };
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json({ error: "messages required" }, { status: 400 });
     }
-    const normalizedEmail = email?.trim().toLowerCase();
-    if (!await isMember(normalizedEmail)) return NextResponse.json(MEMBERSHIP_REQUIRED_RESPONSE, { status: 403 });
 
     const listings = await db.retailerListing.findMany({
       where: { published: true, inStock: true },

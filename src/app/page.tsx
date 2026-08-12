@@ -6,7 +6,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 export const metadata: Metadata = {
   title: "Bud Seeker | Skip the Menu. Get Matched Instantly.",
   description:
-    "Stop scrolling menus. Tell Bud Seeker what you want and get matched to real, in-stock cannabis products in seconds — then see exactly which nearby stores have it, delivery or pickup. Free, private, 21+.",
+    "Stop scrolling menus. Search by strain or ask Bud Seeker what you want and get matched to real, in-stock cannabis products in seconds — then find exactly which nearby stores have it, delivery or pickup. Free, instant, no signup, 21+.",
 };
 
 const steps = [
@@ -45,8 +45,8 @@ const features = [
   },
   {
     icon: Lock,
-    title: "No accounts. No spam.",
-    description: "One email gets you in for good. No passwords, no clutter, no tracking beyond what keeps it running.",
+    title: "No signup. No spam.",
+    description: "No email, no password, no account to create. Search and chat instantly — nothing to remember, nothing to clutter your inbox.",
   },
 ] as const;
 
@@ -73,20 +73,20 @@ export default function Home() {
             <div className="absolute left-1/2 top-0 h-[36rem] w-[36rem] -translate-x-1/2 -translate-y-1/3 rounded-full bg-emerald-500/20 blur-[160px]" />
           </div>
           <div className="relative mx-auto max-w-4xl px-6 py-28 text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-700 dark:text-emerald-400 dark:neon-text">Free · Private · 21+</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-700 dark:text-emerald-400 dark:neon-text">Free · Instant · 21+</p>
             <h1 className="mt-5 text-5xl font-semibold tracking-tight sm:text-6xl">
               Skip the guesswork.<br />
               <span className="text-emerald-700 dark:text-emerald-400 dark:neon-text">Get matched instantly.</span>
             </h1>
             <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-slate-600 dark:text-zinc-400">
-              Tell Bud Seeker what you&apos;re after — the vibe, the strength, the format — and get matched to
-              real, in-stock products in seconds. Then see exactly which nearby stores have it, delivery
+              Search by strain, tell Bud Seeker what you&apos;re after, or share your location — get matched to
+              real, in-stock products in seconds and see exactly which nearby stores have it, delivery
               or pickup, ready to go.
             </p>
             <div className="mt-9 flex justify-center">
               <BudSeekerTrigger />
             </div>
-            <p className="mt-4 text-xs text-slate-500 dark:text-zinc-500">Free to join. Takes 10 seconds.</p>
+            <p className="mt-4 text-xs text-slate-500 dark:text-zinc-500">No email. No signup. Just open it and go.</p>
           </div>
         </section>
 
@@ -125,9 +125,9 @@ export default function Home() {
         <section className="mx-auto max-w-4xl px-6 pb-24">
           <div className="rounded-[2rem] bg-emerald-700 px-8 py-14 text-center text-white dark:bg-black dark:border dark:border-emerald-400/30 dark:shadow-[0_0_0_1px_rgba(52,255,156,.2),0_0_60px_rgba(52,255,156,.15)]">
             <Store className="mx-auto h-8 w-8 dark:text-emerald-400 dark:drop-shadow-[0_0_14px_rgba(52,255,156,.6)]" />
-            <h2 className="mt-4 text-3xl font-semibold dark:text-white">Your next favorite product is one message away.</h2>
+            <h2 className="mt-4 text-3xl font-semibold dark:text-white">Your next favorite product is one search away.</h2>
             <p className="mx-auto mt-3 max-w-md text-emerald-50 dark:text-zinc-400">
-              Join free and start matching with real products at stores near you — no menus, no calling around.
+              Start matching with real products at stores near you — free, instant, no menus, no calling around.
             </p>
             <div className="mt-7 flex justify-center">
               <BudSeekerTrigger />

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isMember, MEMBERSHIP_REQUIRED_RESPONSE } from "@/lib/membership";
 
 export const dynamic = "force-dynamic";
 
@@ -24,11 +23,9 @@ function distanceMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
 export async function GET(req: NextRequest) {
   const lat = Number(req.nextUrl.searchParams.get("lat"));
   const lon = Number(req.nextUrl.searchParams.get("lon"));
-  const email = req.nextUrl.searchParams.get("email")?.trim().toLowerCase();
   if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
     return NextResponse.json({ error: "Valid coordinates are required." }, { status: 400 });
   }
-  if (!await isMember(email)) return NextResponse.json(MEMBERSHIP_REQUIRED_RESPONSE, { status: 403 });
 
   const query = `[out:json][timeout:20];
     (
