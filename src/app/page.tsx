@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Bike, Leaf, Lock, Map, MessageCircle, Store } from "lucide-react";
 import { BudSeekerTrigger } from "@/components/BudSeekerTrigger";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { NearbyDispensaries } from "@/components/NearbyDispensaries";
 
 export const metadata: Metadata = {
   title: "Bud Seeker | Skip the Menu. Get Matched Instantly.",
@@ -87,6 +88,16 @@ export default function Home() {
               <BudSeekerTrigger />
             </div>
             <p className="mt-4 text-xs text-slate-500 dark:text-zinc-500">No email. No signup. Just open it and go.</p>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-6xl px-6 py-16">
+          <div className="text-center">
+            <h2 className="text-3xl font-semibold sm:text-4xl">See what&apos;s near you</h2>
+            <p className="mx-auto mt-3 max-w-xl text-slate-600 dark:text-zinc-400">Share your location and every licensed dispensary nearby lights up on the map — no signup, nothing to install.</p>
+          </div>
+          <div className="mt-8">
+            <NearbyDispensaries />
           </div>
         </section>
 

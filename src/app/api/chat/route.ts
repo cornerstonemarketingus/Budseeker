@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { db } from "@/lib/db";
-import { assessDeal, recordPriceObservation } from "@/lib/pricing";
+import { computeDealAssessment, getPriceHistoryMap, recordPriceObservationsBatch } from "@/lib/pricing";
 
 export const dynamic = "force-dynamic";
 
@@ -21,20 +22,26 @@ export async function POST(req: NextRequest) {
       orderBy: { featured: "desc" },
     });
 
-    const productLines = await Promise.all(listings.map(async (listing) => {
+    const listingIds = listings.map((listing) => listing.id);
+    // Today's snapshot is bookkeeping for future DealScores, not needed for this reply —
+    // deferred to run after the response is sent instead of blocking it.
+    after(() =>
+      recordPriceObservationsBatch(
+        listings.map((listing) => ({ listingId: listing.id, price: listing.price, comparePrice: listing.comparePrice })),
+      ).catch((err) => console.error("Price observation batch failed:", err)),
+    );
+    const historyMap = await getPriceHistoryMap(listingIds);
+
+    const productLines = listings.map((listing) => {
       const product = listing.variant.canonicalProduct;
-      // Best-effort: today's snapshot and deal score should never block a chat reply.
-      const deal = await Promise.all([
-        recordPriceObservation(listing.id, listing.price, listing.comparePrice).catch(() => undefined),
-        assessDeal(listing.id, listing.price, listing.comparePrice).catch(() => null),
-      ]).then(([, assessment]) => assessment);
+      const deal = computeDealAssessment(historyMap.get(listing.id) ?? [], listing.price, listing.comparePrice);
 
       const dealNote = deal
         ? ` | ${deal.label} (${deal.dealScore}/100${deal.savingsVsTypical > 0 ? `, $${deal.savingsVsTypical.toFixed(2)} below typical` : ""})`
         : "";
       const sizeNote = listing.variant.label ? ` ${listing.variant.label}` : "";
       return `• ${product.name}${sizeNote} (${product.category.name}) — $${listing.price}${product.thcContent ? ` | THC: ${product.thcContent}%` : ""}${product.cbdContent ? ` | CBD: ${product.cbdContent}%` : ""}${product.strain ? ` | ${product.strain}` : ""}${dealNote}`;
-    }));
+    });
     const productSummary = productLines.join("\n");
 
     const systemPrompt = `You are Bud Seeker, a friendly, knowledgeable budtender assistant that helps people choose the right cannabis product.
