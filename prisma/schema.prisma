@@ -50,8 +50,22 @@ model Product {
   updatedAt     DateTime @updatedAt
 
   category Category @relation(fields: [categoryId], references: [id])
+  priceObservations PriceObservation[]
 
   @@map("products")
+}
+
+model PriceObservation {
+  id           String   @id @default(cuid())
+  productId    String
+  price        Float
+  comparePrice Float?
+  observedAt   DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, observedAt])
+  @@map("price_observations")
 }
 
 model NewsletterSubscriber {

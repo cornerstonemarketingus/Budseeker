@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { assessDeal, recordPriceObservation } from "@/lib/pricing";
 
 export const dynamic = "force-dynamic";
 
@@ -25,22 +26,30 @@ export async function POST(req: NextRequest) {
       orderBy: { featured: "desc" },
     });
 
-    const productSummary = products
-      .map(
-        (p) =>
-          `• ${p.name} (${p.category.name}) — $${p.price}${p.thcContent ? ` | THC: ${p.thcContent}%` : ""}${p.cbdContent ? ` | CBD: ${p.cbdContent}%` : ""}${p.strain ? ` | ${p.strain}` : ""}`
-      )
-      .join("\n");
+    const productLines = await Promise.all(products.map(async (p) => {
+      // Best-effort: today's snapshot and deal score should never block a chat reply.
+      const deal = await Promise.all([
+        recordPriceObservation(p.id, p.price, p.comparePrice).catch(() => undefined),
+        assessDeal(p.id, p.price, p.comparePrice).catch(() => null),
+      ]).then(([, assessment]) => assessment);
+
+      const dealNote = deal
+        ? ` | ${deal.label} (${deal.dealScore}/100${deal.savingsVsTypical > 0 ? `, $${deal.savingsVsTypical.toFixed(2)} below typical` : ""})`
+        : "";
+      return `• ${p.name} (${p.category.name}) — $${p.price}${p.thcContent ? ` | THC: ${p.thcContent}%` : ""}${p.cbdContent ? ` | CBD: ${p.cbdContent}%` : ""}${p.strain ? ` | ${p.strain}` : ""}${dealNote}`;
+    }));
+    const productSummary = productLines.join("\n");
 
     const systemPrompt = `You are Bud Seeker, a friendly, knowledgeable budtender assistant that helps people choose the right cannabis product.
 
 Your role:
 - Help customers choose the right cannabis products for their needs
 - Answer questions about strains, effects, dosing, and product types
+- Point out genuinely good deals (labeled "Excellent deal" or "Good deal") when they fit what the customer is asking for, but don't oversell a "Fair price" or "Above typical" item as a deal
 - Always remind customers that products are for adults 21+ only
 - Never provide medical advice; direct medical questions to a healthcare provider
 
-Current inventory:
+Current inventory (deal ratings are based on each product's own trailing price history, not other retailers):
 ${productSummary}
 
 Be warm, professional, and concise. Use cannabis-friendly language but stay legal and responsible.`;

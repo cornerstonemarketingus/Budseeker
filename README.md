@@ -7,6 +7,7 @@ An AI product guide and nearby-dispensary finder for cannabis retailers, built w
 - Email-gated private product guide chat (backed by an Ollama-compatible LLM)
 - Nearby dispensary search via OpenStreetMap/Overpass, with distance and map view
 - City/ZIP geocoding via Nominatim
+- Price intelligence: daily price snapshots per product power a DealScore (with fake-sale detection) surfaced in chat and via a price-history API
 
 ## Getting Started
 
@@ -58,12 +59,14 @@ src/
 │       ├── chat/          # Product guide chat (Ollama-compatible)
 │       ├── dispensaries/  # Nearby dispensary search (Overpass)
 │       ├── geocode/       # City/ZIP geocoding (Nominatim)
-│       └── newsletter/subscribe/  # Email gate
+│       ├── newsletter/subscribe/  # Email gate
+│       └── products/[slug]/price-history/  # DealScore + price history
 ├── components/
 │   ├── BudSeekerTrigger.tsx
 │   └── ChatWidget.tsx
 └── lib/
-    └── db.ts
+    ├── db.ts
+    └── pricing.ts          # DealScore + price snapshot logic
 prisma/
 └── schema.prisma
 ```
