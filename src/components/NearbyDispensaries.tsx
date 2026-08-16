@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bike, ExternalLink, ListFilter, Loader2, LocateFixed, Map, MapPin,
   Navigation, Store,
@@ -38,7 +38,7 @@ const chip = (active: boolean) =>
     ? "bg-emerald-700 text-white dark:bg-emerald-500/15 dark:text-emerald-300 dark:shadow-[0_0_0_1px_rgba(52,255,156,.4),0_0_16px_rgba(52,255,156,.25)]"
     : "border border-slate-200 bg-white text-slate-600 hover:border-emerald-300 dark:border-white/10 dark:bg-white/[.03] dark:text-zinc-400 dark:hover:border-emerald-500/40";
 
-export function NearbyDispensaries() {
+export function NearbyDispensaries({ autoLocate = false }: { autoLocate?: boolean }) {
   const [places, setPlaces] = useState<Place[]>([]);
   const [locationState, setLocationState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [locationError, setLocationError] = useState("");
@@ -49,6 +49,7 @@ export function NearbyDispensaries() {
   const [websiteOnly, setWebsiteOnly] = useState(false);
   const [fulfillment, setFulfillment] = useState<FulfillmentFilter>("any");
   const [focusedPlaceId, setFocusedPlaceId] = useState<string | null>(null);
+  const autoLocateRequested = useRef(false);
 
   const visiblePlaces = useMemo(
     () => places.filter((place) =>
@@ -59,7 +60,7 @@ export function NearbyDispensaries() {
     [places, maxDistance, websiteOnly, fulfillment],
   );
 
-  async function loadPlaces(nextCoordinates: Coordinates, label: string) {
+  const loadPlaces = useCallback(async (nextCoordinates: Coordinates, label: string) => {
     setLocationState("loading");
     setLocationError("");
     setCoordinates(nextCoordinates);
@@ -75,9 +76,9 @@ export function NearbyDispensaries() {
       setLocationState("error");
       setLocationError(error instanceof Error ? error.message : "Search failed.");
     }
-  }
+  }, []);
 
-  function shareLocation() {
+  const shareLocation = useCallback(() => {
     if (!navigator.geolocation) {
       setLocationState("error");
       setLocationError("Location sharing isn't available in this browser.");
@@ -92,7 +93,13 @@ export function NearbyDispensaries() {
       },
       { enableHighAccuracy: false, timeout: 12000, maximumAge: 300000 },
     );
-  }
+  }, [loadPlaces]);
+
+  useEffect(() => {
+    if (!autoLocate || autoLocateRequested.current) return;
+    autoLocateRequested.current = true;
+    shareLocation();
+  }, [autoLocate, shareLocation]);
 
   async function searchArea(event: React.FormEvent) {
     event.preventDefault();

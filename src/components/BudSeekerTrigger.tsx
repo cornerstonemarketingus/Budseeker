@@ -8,7 +8,7 @@ interface BudSeekerTriggerProps {
 export function BudSeekerTrigger({ compact = false }: BudSeekerTriggerProps) {
   return (
     <Link
-      href="/bud-seeker"
+      href="/bud-seeker?nearby=1"
       className={
         compact
           ? "inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300 dark:shadow-[0_0_0_1px_rgba(52,255,156,.3)] dark:hover:shadow-[0_0_0_1px_rgba(52,255,156,.5),0_0_18px_rgba(52,255,156,.25)]"

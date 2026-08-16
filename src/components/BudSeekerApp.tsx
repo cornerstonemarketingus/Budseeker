@@ -54,6 +54,7 @@ export function BudSeekerApp() {
   }]);
   const [input, setInput] = useState("");
   const [askLoading, setAskLoading] = useState(false);
+  const [requestNearby, setRequestNearby] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   async function runProductSearch(q: string) {
@@ -70,6 +71,12 @@ export function BudSeekerApp() {
 
   // Load the full menu immediately so results are visible without typing first.
   useEffect(() => { runProductSearch(""); }, []);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("nearby") !== "1") return;
+    setRequestNearby(true);
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.hash}`);
+  }, []);
   useEffect(() => { if (askOpen) bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, askOpen]);
 
   const sortedProducts = useMemo(() => {
@@ -220,7 +227,7 @@ export function BudSeekerApp() {
         <section>
           <h2 className="text-lg font-semibold">Nearby dispensaries</h2>
           <div className="mt-4">
-            <NearbyDispensaries />
+            <NearbyDispensaries autoLocate={requestNearby} />
           </div>
         </section>
       </main>
