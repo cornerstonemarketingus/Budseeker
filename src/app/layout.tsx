@@ -6,24 +6,21 @@ const favicon =
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://budseeker.vercel.app"),
-  title: {
-    default: "Bud Seeker | Cannabis Product & Dispensary Guide",
-    template: "%s | Bud Seeker",
-  },
+  title: { default: "BudSeeker | Licensed Dispensary Directory", template: "%s | BudSeeker" },
   description:
-    "Bud Seeker is a free, instant AI product guide and nearby-dispensary finder for cannabis shoppers — search by strain or location, no signup required, compare delivery and pickup options, and get matched to the right product. 21+ only.",
+    "A location-first directory for finding licensed cannabis dispensaries in Minnesota.",
   keywords: [
     "cannabis dispensary finder",
     "cannabis delivery near me",
     "dispensary pickup",
-    "AI budtender",
-    "cannabis product guide",
+    "Minnesota dispensary directory",
+    "licensed cannabis retailers",
   ],
   icons: { icon: favicon },
   openGraph: {
-    title: "Bud Seeker | Cannabis Product & Dispensary Guide",
+    title: "BudSeeker | Licensed Dispensary Directory",
     description:
-      "An instant, no-signup AI product guide and nearby-dispensary finder — compare delivery and pickup options at licensed retailers near you.",
+      "A location-first directory of licensed cannabis retailers in Minnesota.",
     type: "website",
     locale: "en_US",
   },

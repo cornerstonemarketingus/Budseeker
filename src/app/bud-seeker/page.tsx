@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { BudSeekerApp } from "@/components/BudSeekerApp";
 
 export const metadata: Metadata = {
-  title: "Bud Seeker",
+  title: "BudSeeker | Licensed Dispensary Directory",
   description:
-    "Search cannabis products by strain, brand, or effect, find nearby licensed dispensaries by location, and ask Bud Seeker's AI budtender for a match — free, no signup required.",
+    "Search Minnesota licensed dispensaries by city, ZIP, or shared location.",
 };
 
 export default function BudSeekerPage() {
