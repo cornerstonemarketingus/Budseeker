@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { db } from "@/lib/db";
 import { computeDealAssessment, getPriceHistoryMap, recordPriceObservationsBatch } from "@/lib/pricing";
+import { fallbackBudtenderReply, searchHighSocietyCatalog } from "@/lib/highsociety-catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,18 @@ export async function POST(req: NextRequest) {
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json({ error: "messages required" }, { status: 400 });
+    }
+
+    const baseUrl = (process.env.OLLAMA_BASE_URL || (process.env.OLLAMA_API_KEY ? "https://ollama.com" : "")).replace(/\/$/, "");
+    if (!baseUrl) {
+      try {
+        const products = await searchHighSocietyCatalog("");
+        const lastUserMessage = [...messages].reverse().find((message) => message.role === "user")?.content ?? "";
+        return NextResponse.json({ reply: fallbackBudtenderReply(lastUserMessage, products), mode: "catalog-guidance" });
+      } catch (error) {
+        console.error("Built-in Budtender fallback failed:", error);
+        return NextResponse.json({ reply: "Tell me the format or vibe you want, and I can help you narrow it down. Adults 21+ only.", mode: "basic-guidance" });
+      }
     }
 
     const listings = await db.retailerListing.findMany({
@@ -57,14 +70,6 @@ Current inventory (deal ratings are based on each product's own trailing price h
 ${productSummary}
 
 Be warm, professional, and concise. Use cannabis-friendly language but stay legal and responsible.`;
-
-    const baseUrl = (process.env.OLLAMA_BASE_URL || (process.env.OLLAMA_API_KEY ? "https://ollama.com" : "")).replace(/\/$/, "");
-    if (!baseUrl) {
-      return NextResponse.json(
-        { error: "Bud Seeker guidance is not configured yet. Nearby dispensary search is still available." },
-        { status: 503 },
-      );
-    }
 
     const model = process.env.OLLAMA_MODEL ?? "gemma4:31b";
     const headers: Record<string, string> = { "Content-Type": "application/json" };
