@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import L from "leaflet";
-import "leaflet/dist/leaflet.css";
 
 type Place = {
   id: string;
@@ -17,7 +16,7 @@ type Coordinates = { latitude: number; longitude: number };
 function numberedIcon(index: number) {
   return L.divIcon({
     className: "",
-    html: `<div style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9999px;background:#047857;color:#fff;font:700 12px sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.35);border:2px solid white;">${index + 1}</div>`,
+    html: `<div style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9999px;background:#C9A961;color:#12190F;font:500 12px 'IBM Plex Mono',monospace;border:1px solid #12190F;">${index + 1}</div>`,
     iconSize: [28, 28],
     iconAnchor: [14, 14],
     popupAnchor: [0, -14],
@@ -26,7 +25,7 @@ function numberedIcon(index: number) {
 
 const youAreHereIcon = L.divIcon({
   className: "",
-  html: `<div style="width:16px;height:16px;border-radius:9999px;background:#2563eb;border:3px solid white;box-shadow:0 0 0 4px rgba(37,99,235,.35);"></div>`,
+  html: `<div style="width:16px;height:16px;border-radius:9999px;background:#4F6B4A;border:3px solid #F3EFE3;"></div>`,
   iconSize: [16, 16],
   iconAnchor: [8, 8],
 });

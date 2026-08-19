@@ -1,83 +1,52 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Leaf, Loader2, Search, Send, SlidersHorizontal, Sparkles, TrendingDown, X } from "lucide-react";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { useMemo, useRef, useState } from "react";
+import { Map, MessageCircle, Search, Send, SlidersHorizontal, TrendingDown } from "lucide-react";
 import { NearbyDispensaries } from "@/components/NearbyDispensaries";
 
-type Deal = {
-  dealScore: number;
-  label: string;
-  typicalPrice: number;
-  lowestPrice: number;
-  savingsVsTypical: number;
-  suspiciousSale: boolean;
-};
-
-type ProductResult = {
-  productName: string;
-  slug: string;
-  brand: string | null;
-  category: string;
-  strain: string | null;
-  thcContent: number | null;
-  cbdContent: number | null;
-  effects: string[];
-  variantId: string;
-  variantLabel: string;
-  price: number;
-  comparePrice: number | null;
-  deal: Deal | null;
-};
-
+type Deal = { dealScore: number; label: string };
+type ProductResult = { productName: string; slug: string; brand: string | null; category: string; strain: string | null; thcContent: number | null; cbdContent: number | null; effects: string[]; variantId: string; variantLabel: string; price: number; deal: Deal | null };
 type ProductSort = "deal" | "price-asc" | "price-desc";
-type Message = { role: "user" | "assistant"; content: string };
+type Message = { role: "user" | "assistant"; content: string; products?: ProductResult[] };
+type Tab = "search" | "map" | "ask";
 
-const chip = (active: boolean) =>
-  active
-    ? "bg-emerald-700 text-white dark:bg-emerald-500/15 dark:text-emerald-300 dark:shadow-[0_0_0_1px_rgba(52,255,156,.4),0_0_16px_rgba(52,255,156,.25)]"
-    : "border border-slate-200 bg-white text-slate-600 hover:border-emerald-300 dark:border-white/10 dark:bg-white/[.03] dark:text-zinc-400 dark:hover:border-emerald-500/40";
+const prompts = ["Something relaxing for sleep", "Best deal under $30", "High-THC flower nearby", "A balanced, low-key edible"];
+const chip = (active: boolean) => active
+  ? "border border-[var(--accent-gold)] bg-[var(--accent-gold)] text-[var(--bg-primary)]"
+  : "border border-[var(--border-hairline)] bg-[var(--bg-surface-2)] text-[var(--text-secondary)] hover:border-[var(--accent-moss)]";
+
+function LeafVein({ thinking = false }: { thinking?: boolean }) {
+  return <svg viewBox="0 0 240 34" className={`leaf-vein ${thinking ? "leaf-thinking" : ""}`} aria-hidden="true"><path d="M6 24c55-1 93-8 138-17 35-7 64-4 90 5M62 18 47 8M91 14 77 27M121 10 108 2M150 7l-9 16M177 6l11-5M203 8l13 10" /></svg>;
+}
+
+function BrandMark() {
+  return <div className="font-display text-2xl font-semibold text-[var(--text-primary)]">Bud Seeker</div>;
+}
+
+function ProductCard({ product }: { product: ProductResult }) {
+  return <article className="rounded-[var(--radius-card)] border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 transition-colors hover:border-[var(--accent-moss)]">
+    <div className="flex items-start justify-between gap-4">
+      <div><p className="text-[13px] font-medium uppercase tracking-[.08em] text-[var(--accent-gold)]">{product.category}{product.brand ? ` · ${product.brand}` : ""}</p><h3 className="mt-1 text-[18px] font-medium">{product.productName}</h3><p className="mt-1 text-[13px] text-[var(--text-secondary)]">{product.variantLabel}{product.strain ? ` · ${product.strain}` : ""}</p></div>
+      <span className="font-data shrink-0 text-[18px] text-[var(--text-primary)]">${product.price.toFixed(2)}</span>
+    </div>
+    <div className="font-data mt-4 flex flex-wrap gap-2 text-[13px] text-[var(--text-secondary)]">
+      {product.thcContent != null && <span className="rounded-full bg-[var(--bg-surface-2)] px-3 py-1">THC {product.thcContent}%</span>}
+      {product.cbdContent != null && <span className="rounded-full bg-[var(--bg-surface-2)] px-3 py-1">CBD {product.cbdContent}%</span>}
+      {product.deal && <span className="rounded-full bg-[var(--bg-surface-2)] px-3 py-1 text-[var(--accent-gold)]">{product.deal.label}</span>}
+    </div>
+  </article>;
+}
 
 export function BudSeekerApp() {
-  // Product search
+  const [tab, setTab] = useState<Tab>("search");
   const [productQuery, setProductQuery] = useState("");
   const [sort, setSort] = useState<ProductSort>("deal");
   const [products, setProducts] = useState<ProductResult[]>([]);
-  const [productState, setProductState] = useState<"loading" | "done" | "error">("loading");
-
-  // Ask Bud Seeker (collapsible helper, not a floating bot)
-  const [askOpen, setAskOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([{
-    role: "assistant",
-    content: "What are you in the mood for? Tell me the vibe, strength, or format and I'll match it against what's actually in stock right now.",
-  }]);
+  const [productState, setProductState] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [askLoading, setAskLoading] = useState(false);
-  const [requestNearby, setRequestNearby] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-
-  async function runProductSearch(q: string) {
-    try {
-      const response = await fetch(`/api/products/search?q=${encodeURIComponent(q)}`);
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Search failed.");
-      setProducts(data.results ?? []);
-      setProductState("done");
-    } catch {
-      setProductState("error");
-    }
-  }
-
-  // Load the full menu immediately so results are visible without typing first.
-  useEffect(() => { runProductSearch(""); }, []);
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("nearby") !== "1") return;
-    setRequestNearby(true);
-    window.history.replaceState(null, "", `${window.location.pathname}${window.location.hash}`);
-  }, []);
-  useEffect(() => { if (askOpen) bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, askOpen]);
 
   const sortedProducts = useMemo(() => {
     const copy = [...products];
@@ -87,154 +56,66 @@ export function BudSeekerApp() {
     return copy;
   }, [products, sort]);
 
-  async function sendMessage(event: React.FormEvent) {
-    event.preventDefault();
-    const text = input.trim();
-    if (!text || askLoading) return;
-    const userMessage: Message = { role: "user", content: text };
-    setMessages((current) => [...current, userMessage]);
-    setInput("");
-    setAskLoading(true);
+  async function runProductSearch(query = productQuery) {
+    const q = query.trim();
+    if (!q) return;
+    setProductState("loading");
     try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [...messages, userMessage] }),
-      });
+      const response = await fetch(`/api/products/search?q=${encodeURIComponent(q)}`);
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Guide is unavailable.");
-      setMessages((current) => [...current, { role: "assistant", content: data.reply }]);
-    } catch (error) {
-      setMessages((current) => [...current, { role: "assistant", content: error instanceof Error ? error.message : "Guide is unavailable." }]);
-    } finally {
-      setAskLoading(false);
-    }
+      if (!response.ok) throw new Error();
+      setProducts(data.results ?? []); setProductState("done");
+    } catch { setProductState("error"); }
   }
 
-  return (
-    <div className="min-h-screen bg-white text-slate-950 dark:bg-black dark:text-white">
-      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur dark:border-white/10 dark:bg-black/80">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
-          <Link href="/" className="flex items-center gap-2 font-semibold">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white dark:bg-emerald-500 dark:text-black dark:shadow-[0_0_20px_rgba(52,255,156,.5)]">
-              <Leaf className="h-4 w-4" />
-            </span>
-            Bud Seeker
-          </Link>
-          <ThemeToggle />
-        </div>
-      </header>
+  async function ask(text: string) {
+    const query = text.trim(); if (!query || askLoading) return;
+    const userMessage: Message = { role: "user", content: query };
+    const history = [...messages, userMessage];
+    setMessages(history); setInput(""); setAskLoading(true);
+    try {
+      const [chatResponse, productResponse] = await Promise.all([
+        fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: history.map(({ role, content }) => ({ role, content })) }) }),
+        fetch(`/api/products/search?q=${encodeURIComponent(query)}`),
+      ]);
+      const chat = await chatResponse.json(); const matches = await productResponse.json();
+      if (!chatResponse.ok) throw new Error(chat.error || "Bud Seeker is unavailable right now.");
+      setMessages(current => [...current, { role: "assistant", content: chat.reply, products: (matches.results ?? []).slice(0, 3) }]);
+    } catch (error) { setMessages(current => [...current, { role: "assistant", content: error instanceof Error ? error.message : "Bud Seeker is unavailable right now." }]); }
+    finally { setAskLoading(false); setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50); }
+  }
 
-      <main className="mx-auto max-w-6xl space-y-10 px-6 py-8">
-        {/* Search hub */}
-        <section className="rounded-3xl border border-slate-200 bg-slate-50 p-5 dark:border-white/10 dark:bg-white/[.02] sm:p-7">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400">Free · Instant · No signup</p>
-          <h1 className="mt-2 text-2xl font-semibold sm:text-3xl">Find your product, then find it nearby.</h1>
+  return <div className="min-h-screen bg-[var(--bg-primary)] pb-28 text-[var(--text-primary)]">
+    <header className="sticky top-0 z-[1000] border-b border-[var(--border-hairline)] bg-[color:rgba(18,25,15,.94)] backdrop-blur">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5"><BrandMark /><span className="font-data text-[11px] uppercase tracking-[.12em] text-[var(--text-secondary)]">Adults 21+</span></div>
+    </header>
 
-          <div className="mt-5 relative">
-            <Search className="absolute left-3 top-3.5 h-4 w-4 text-slate-400 dark:text-zinc-500" />
-            <input
-              value={productQuery}
-              onChange={(event) => setProductQuery(event.target.value)}
-              onKeyDown={(event) => { if (event.key === "Enter") { setProductState("loading"); runProductSearch(productQuery); } }}
-              placeholder="Search strain, product, brand, or effect"
-              className="h-12 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-4 text-sm outline-none focus:border-emerald-500 dark:border-white/10 dark:bg-white/[.03] dark:text-white dark:focus:border-emerald-400/60"
-            />
-          </div>
+    <main className="mx-auto max-w-6xl px-5 py-8 sm:py-12">
+      {tab === "search" && <section>
+        <p className="text-[13px] font-medium uppercase tracking-[.12em] text-[var(--accent-gold)]">Product search</p>
+        <h1 className="font-display mt-2 max-w-xl text-[32px] font-medium leading-tight">Find what fits, without scrolling every menu.</h1>
+        <LeafVein />
+        <form onSubmit={e => { e.preventDefault(); runProductSearch(); }} className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <label className="relative flex-1"><Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-secondary)]" /><input value={productQuery} onChange={e => setProductQuery(e.target.value)} placeholder="Strain, product, brand, or effect" className="h-12 w-full rounded-[var(--radius-button)] border border-[var(--border-hairline)] bg-[var(--bg-surface)] pl-11 pr-4 text-[15px] outline-none placeholder:text-[var(--text-secondary)] focus:border-[var(--accent-moss)]" /></label>
+          <button disabled={!productQuery.trim()} className="h-12 rounded-[var(--radius-button)] bg-[var(--accent-gold)] px-7 font-medium text-[var(--bg-primary)] disabled:opacity-40">Search</button>
+        </form>
+        {productState !== "idle" && <div className="mt-5 flex flex-wrap items-center gap-2"><span className="inline-flex items-center gap-1 text-[13px] text-[var(--text-secondary)]"><SlidersHorizontal className="h-3.5 w-3.5" />Sort</span><button onClick={() => setSort("deal")} className={`rounded-full px-3 py-1.5 text-[12px] ${chip(sort === "deal")}`}><TrendingDown className="mr-1 inline h-3 w-3" />Best deal</button><button onClick={() => setSort("price-asc")} className={`rounded-full px-3 py-1.5 text-[12px] ${chip(sort === "price-asc")}`}>Price: low</button><button onClick={() => setSort("price-desc")} className={`rounded-full px-3 py-1.5 text-[12px] ${chip(sort === "price-desc")}`}>Price: high</button></div>}
+        {productState === "idle" && <div className="mt-16 text-center"><div className="mx-auto max-w-sm opacity-25"><LeafVein /></div><p className="mt-3 text-[15px] text-[var(--text-secondary)]">Search a strain, brand, product, or desired effect.</p></div>}
+        {productState === "loading" && <div className="mx-auto mt-16 max-w-md text-center"><LeafVein thinking /><p className="text-[13px] text-[var(--text-secondary)]">Checking available products…</p></div>}
+        {productState === "error" && <p className="mt-10 text-[15px] text-[var(--error)]">Product search is temporarily unavailable. Try again in a moment.</p>}
+        {productState === "done" && sortedProducts.length === 0 && <p className="mt-10 rounded-[var(--radius-card)] border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6 text-[15px] text-[var(--text-secondary)]">No products match “{productQuery}.” Try a broader strain, brand, or effect.</p>}
+        {productState === "done" && sortedProducts.length > 0 && <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{sortedProducts.map(product => <ProductCard key={product.variantId} product={product} />)}</div>}
+      </section>}
 
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <button onClick={() => { setProductState("loading"); runProductSearch(productQuery); }} className="rounded-full bg-emerald-700 px-4 py-1.5 text-xs font-semibold text-white dark:bg-emerald-500 dark:text-black">Search</button>
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 dark:text-zinc-500"><SlidersHorizontal className="h-3.5 w-3.5" />Sort</span>
-            <button onClick={() => setSort("deal")} className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold transition ${chip(sort === "deal")}`}><TrendingDown className="h-3.5 w-3.5" />Best deal</button>
-            <button onClick={() => setSort("price-asc")} className={`rounded-full px-3 py-1 text-xs font-semibold transition ${chip(sort === "price-asc")}`}>Price: low to high</button>
-            <button onClick={() => setSort("price-desc")} className={`rounded-full px-3 py-1 text-xs font-semibold transition ${chip(sort === "price-desc")}`}>Price: high to low</button>
-          </div>
+      {tab === "map" && <section><p className="text-[13px] font-medium uppercase tracking-[.12em] text-[var(--accent-gold)]">Nearby dispensaries</p><h1 className="font-display mt-2 text-[32px] font-medium">Find a store near you.</h1><div className="mt-7"><NearbyDispensaries /></div></section>}
 
-          <button onClick={() => setAskOpen((current) => !current)} className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-emerald-700 hover:underline dark:text-emerald-400">
-            <Sparkles className="h-4 w-4" />
-            {askOpen ? "Hide Bud Seeker" : "Not sure what you want? Ask Bud Seeker"}
-          </button>
+      {tab === "ask" && <section className="mx-auto max-w-3xl"><p className="text-[13px] font-medium uppercase tracking-[.12em] text-[var(--accent-gold)]">Matched by Bud Seeker</p><h1 className="font-display mt-2 text-[32px] font-medium">What are you looking for?</h1>
+        {messages.length === 0 && <div className="mt-8"><p className="max-w-lg text-[15px] leading-7 text-[var(--text-secondary)]">Describe the vibe, strength, format, or budget. Bud Seeker will check products that fit.</p><div className="mt-6 flex flex-wrap gap-2">{prompts.map(prompt => <button key={prompt} onClick={() => ask(prompt)} className="rounded-full border border-[var(--border-hairline)] bg-[var(--bg-surface-2)] px-4 py-2 text-left text-[13px] text-[var(--text-secondary)] hover:border-[var(--accent-moss)] hover:text-[var(--text-primary)]">{prompt}</button>)}</div><div className="mx-auto mt-14 max-w-sm opacity-20"><LeafVein /></div></div>}
+        <div className="mt-8 space-y-7">{messages.map((message, index) => message.role === "user" ? <div key={index} className="flex justify-end"><div className="max-w-[82%] rounded-2xl rounded-br-md bg-[var(--bg-surface-2)] px-4 py-3 text-[15px] leading-6">{message.content}</div></div> : <div key={index}><p className="whitespace-pre-wrap text-[15px] leading-7 text-[var(--text-primary)]">{message.content}</p>{message.products && message.products.length > 0 && <div className="mt-4 grid gap-3 sm:grid-cols-2">{message.products.map(product => <ProductCard key={product.variantId} product={product} />)}</div>}</div>)}{askLoading && <div className="max-w-sm"><LeafVein thinking /><p className="text-[13px] text-[var(--text-secondary)]">Matching products…</p></div>}<div ref={bottomRef} /></div>
+        <form onSubmit={e => { e.preventDefault(); ask(input); }} className="sticky bottom-24 mt-10 flex items-center gap-2 rounded-[var(--radius-card)] border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-2"><input value={input} onChange={e => setInput(e.target.value)} placeholder="Vibe, strength, format, or budget…" className="h-11 min-w-0 flex-1 bg-transparent px-3 text-[15px] outline-none placeholder:text-[var(--text-secondary)]" /><button disabled={!input.trim() || askLoading} aria-label="Send" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--accent-gold)] text-[var(--bg-primary)] disabled:opacity-40"><Send className="h-4 w-4" /></button></form>
+      </section>}
+    </main>
 
-          {askOpen && (
-            <div className="mt-4 flex h-[420px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-black">
-              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2 dark:border-white/10">
-                <span className="text-xs font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Ask Bud Seeker</span>
-                <button onClick={() => setAskOpen(false)} className="rounded-full p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5" aria-label="Close"><X className="h-4 w-4" /></button>
-              </div>
-              <div className="flex-1 space-y-4 overflow-y-auto p-4">
-                {messages.map((message, index) => message.role === "user" ? (
-                  <div key={index} className="flex justify-end">
-                    <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-emerald-700 px-3 py-2 text-sm leading-relaxed text-white dark:bg-emerald-500/15 dark:text-white">{message.content}</div>
-                  </div>
-                ) : (
-                  <div key={index} className="flex gap-2">
-                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"><Sparkles className="h-3.5 w-3.5" /></span>
-                    <p className="max-w-[85%] whitespace-pre-wrap text-sm leading-relaxed text-slate-800 dark:text-zinc-200">{message.content}</p>
-                  </div>
-                ))}
-                {askLoading && <div className="flex items-center gap-2 text-slate-400 dark:text-zinc-500"><Loader2 className="h-4 w-4 animate-spin" /><span className="text-xs">Thinking…</span></div>}
-                <div ref={bottomRef} />
-              </div>
-              <form onSubmit={sendMessage} className="flex gap-2 border-t border-slate-200 p-3 dark:border-white/10">
-                <input value={input} onChange={(event) => setInput(event.target.value)} placeholder="Vibe, strength, or format…"
-                  className="h-10 flex-1 rounded-full border border-slate-300 bg-white px-4 text-sm outline-none focus:border-emerald-500 dark:border-white/10 dark:bg-white/[.03] dark:text-white" />
-                <button disabled={!input.trim() || askLoading} className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-700 text-white disabled:opacity-40 dark:bg-emerald-500 dark:text-black"><Send className="h-4 w-4" /></button>
-              </form>
-            </div>
-          )}
-        </section>
-
-        {/* Product results */}
-        <section>
-          <h2 className="text-lg font-semibold">In our menu{productQuery ? ` — matching "${productQuery}"` : ""}</h2>
-          {productState === "loading" && (
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {Array.from({ length: 6 }).map((_, index) => <div key={index} className="h-40 animate-pulse rounded-2xl border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/[.03]" />)}
-            </div>
-          )}
-          {productState === "error" && <p className="mt-6 text-sm text-red-600 dark:text-red-400">Product search is temporarily unavailable.</p>}
-          {productState === "done" && sortedProducts.length === 0 && (
-            <p className="mt-6 rounded-2xl bg-slate-50 p-8 text-center text-sm text-slate-500 dark:bg-white/[.03] dark:text-zinc-500">No products match &quot;{productQuery}&quot;. Try a different strain, brand, or effect.</p>
-          )}
-          {productState === "done" && sortedProducts.length > 0 && (
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {sortedProducts.map((product) => (
-                <article key={product.variantId} className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-emerald-300 hover:shadow-sm dark:border-white/10 dark:bg-white/[.02] dark:hover:border-emerald-400/40 dark:hover:shadow-[0_0_24px_rgba(52,255,156,.12)]">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">{product.category}{product.brand ? ` · ${product.brand}` : ""}</p>
-                      <h3 className="mt-0.5 font-semibold">{product.productName}</h3>
-                      <p className="text-xs text-slate-500 dark:text-zinc-500">{product.variantLabel}{product.strain ? ` · ${product.strain}` : ""}</p>
-                    </div>
-                    <span className="shrink-0 text-lg font-semibold">${product.price}</span>
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-1.5 text-xs text-slate-500 dark:text-zinc-500">
-                    {product.thcContent != null && <span>THC {product.thcContent}%</span>}
-                    {product.cbdContent != null && <span>CBD {product.cbdContent}%</span>}
-                  </div>
-                  {product.deal && (
-                    <span className="mt-3 inline-flex w-fit items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-                      <TrendingDown className="h-3 w-3" />{product.deal.label} · {product.deal.dealScore}/100
-                    </span>
-                  )}
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Nearby dispensaries */}
-        <section>
-          <h2 className="text-lg font-semibold">Nearby dispensaries</h2>
-          <div className="mt-4">
-            <NearbyDispensaries autoLocate={requestNearby} />
-          </div>
-        </section>
-      </main>
-
-      <footer className="mx-auto max-w-6xl px-6 pb-8 pt-2 text-center text-[11px] text-slate-500 dark:text-zinc-600">
-        Adults 21+ only · Not medical advice
-      </footer>
-    </div>
-  );
+    <nav className="fixed inset-x-0 bottom-0 z-[1100] border-t border-[var(--border-hairline)] bg-[color:rgba(27,36,21,.97)] pb-[env(safe-area-inset-bottom)] backdrop-blur"><div className="mx-auto grid max-w-lg grid-cols-3 px-2 py-2">{([{ id: "search", label: "Search", icon: Search }, { id: "map", label: "Map", icon: Map }, { id: "ask", label: "Ask Bud Seeker", icon: MessageCircle }] as const).map(item => <button key={item.id} onClick={() => setTab(item.id)} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-[var(--radius-button)] text-[12px] transition-colors ${tab === item.id ? "bg-[var(--bg-surface-2)] text-[var(--accent-gold)]" : "text-[var(--text-secondary)]"}`}><item.icon className="h-5 w-5" /><span>{item.label}</span></button>)}</div></nav>
+  </div>;
 }
